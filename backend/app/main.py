@@ -15,9 +15,45 @@ from app.core.logging import app_logger, setup_logging
 from app.core.security import get_password_hash
 from app.db.base import Base
 from app.db.session import async_session_factory, engine
+from app.models.document import Document
+from app.models.persona import Persona
 from app.models.template import Template
 from app.models.user import User, UserRole
 from app.services.storage.minio_service import minio_service
+from app.services.storage.path_formatter import generate_standard_filename
+
+
+async def align_document_filenames() -> None:
+    """Align any unformatted or raw timestamp document names in dev database to standardized nomenclature."""
+    try:
+        async with async_session_factory() as session:
+            stmt = select(Document)
+            result = await session.execute(stmt)
+            docs = result.scalars().all()
+            updated = False
+            for doc in docs:
+                if doc.sanitized_file_name:
+                    name_without_ext = doc.sanitized_file_name.rsplit(".", 1)[0]
+                    # Check if file has a raw numeric timestamp or generic name
+                    if name_without_ext.isdigit() or name_without_ext.startswith("documento_captura_") or name_without_ext == "upload":
+                        persona = await session.get(Persona, doc.persona_id) if doc.persona_id else None
+                        persona_name = persona.name if persona else None
+                        std_name = generate_standard_filename(
+                            persona_name=persona_name,
+                            persona_id=doc.persona_id or "",
+                            doc_type="cin",
+                            doc_id=doc.id,
+                            original_filename=doc.sanitized_file_name,
+                            created_at=doc.created_at,
+                        )
+                        doc.sanitized_file_name = std_name
+                        doc.raw_file_name = std_name
+                        updated = True
+            if updated:
+                await session.commit()
+                app_logger.info("Aligned existing unformatted document filenames to standardized format.")
+    except Exception as exc:
+        app_logger.warning(f"Note during document filenames alignment: {exc}")
 
 
 async def seed_initial_data() -> None:
@@ -97,23 +133,24 @@ async def lifespan(app: FastAPI):
     if engine.dialect.name == "postgresql":
         try:
             from sqlalchemy import text
+            statements = [
+                "ALTER TABLE IF EXISTS personas DROP CONSTRAINT IF EXISTS personas_workspace_id_fkey CASCADE",
+                "ALTER TABLE IF EXISTS documents DROP CONSTRAINT IF EXISTS documents_workspace_id_fkey CASCADE",
+                "ALTER TABLE IF EXISTS collection_links DROP CONSTRAINT IF EXISTS collection_links_workspace_id_fkey CASCADE",
+                "ALTER TABLE IF EXISTS webhook_configs DROP CONSTRAINT IF EXISTS webhook_configs_workspace_id_fkey CASCADE",
+                "ALTER TABLE IF EXISTS personas DROP COLUMN IF EXISTS workspace_id CASCADE",
+                "ALTER TABLE IF EXISTS documents DROP COLUMN IF EXISTS workspace_id CASCADE",
+                "ALTER TABLE IF EXISTS collection_links DROP COLUMN IF EXISTS workspace_id CASCADE",
+                "ALTER TABLE IF EXISTS webhook_configs DROP COLUMN IF EXISTS workspace_id CASCADE",
+                "DROP TABLE IF EXISTS workspaces CASCADE",
+            ]
             async with engine.begin() as conn:
                 app_logger.info("Verifying and aligning PostgreSQL schema for MVP...")
-                await conn.execute(
-                    text("""
-                        ALTER TABLE IF EXISTS personas DROP CONSTRAINT IF EXISTS personas_workspace_id_fkey CASCADE;
-                        ALTER TABLE IF EXISTS documents DROP CONSTRAINT IF EXISTS documents_workspace_id_fkey CASCADE;
-                        ALTER TABLE IF EXISTS collection_links DROP CONSTRAINT IF EXISTS collection_links_workspace_id_fkey CASCADE;
-                        ALTER TABLE IF EXISTS webhook_configs DROP CONSTRAINT IF EXISTS webhook_configs_workspace_id_fkey CASCADE;
-
-                        ALTER TABLE IF EXISTS personas DROP COLUMN IF EXISTS workspace_id CASCADE;
-                        ALTER TABLE IF EXISTS documents DROP COLUMN IF EXISTS workspace_id CASCADE;
-                        ALTER TABLE IF EXISTS collection_links DROP COLUMN IF EXISTS workspace_id CASCADE;
-                        ALTER TABLE IF EXISTS webhook_configs DROP COLUMN IF EXISTS workspace_id CASCADE;
-
-                        DROP TABLE IF EXISTS workspaces CASCADE;
-                    """)
-                )
+                for stmt in statements:
+                    try:
+                        await conn.execute(text(stmt))
+                    except Exception:
+                        pass
                 app_logger.info("Schema aligned successfully (obsolete workspace columns removed).")
         except Exception as e:
             app_logger.warning(f"Note during schema alignment: {e}")
@@ -127,6 +164,9 @@ async def lifespan(app: FastAPI):
 
     # Seed Initial Data
     await seed_initial_data()
+
+    # Align existing documents filenames if any unformatted exist
+    await align_document_filenames()
 
     yield
 

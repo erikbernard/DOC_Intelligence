@@ -42,7 +42,7 @@ from app.services.lock_service import lock_service
 from app.services.persona_service import check_and_update_persona_completion
 from app.services.sse_service import publish_event
 from app.services.storage.minio_service import minio_service
-from app.services.storage.path_formatter import format_storage_path
+from app.services.storage.path_formatter import format_storage_path, generate_standard_filename
 from app.workers.tasks.ocr_tasks import process_document_ocr
 from app.workers.tasks.webhook_tasks import dispatch_workspace_webhooks
 
@@ -79,13 +79,22 @@ async def upload_document_internal(
             detail=f"A inspeção de segurança rejeitou o arquivo: {str(sec_err)}",
         )
 
-    # 2. Format path & upload to MinIO
+    # 2. Format standardized filename and storage path (tipo/persona/data-cod_unico)
     doc_id = str(uuid.uuid4())
-    storage_path = format_storage_path(
+    persona_name = persona.name if persona else None
+    standard_filename = generate_standard_filename(
+        persona_name=persona_name,
         persona_id=persona_id,
         doc_type=document_type,
         doc_id=doc_id,
-        sanitized_filename=clean_name,
+        original_filename=file.filename or clean_name,
+    )
+    storage_path = format_storage_path(
+        persona_name=persona_name,
+        persona_id=persona_id,
+        doc_type=document_type,
+        doc_id=doc_id,
+        sanitized_filename=standard_filename,
         file_bytes=file_bytes,
     )
     minio_service.upload_bytes(storage_path, file_bytes, detected_mime)
@@ -95,8 +104,8 @@ async def upload_document_internal(
         id=doc_id,
         persona_id=persona_id,
         template_id=template_id,
-        raw_file_name=file.filename or "upload",
-        sanitized_file_name=clean_name,
+        raw_file_name=file.filename or standard_filename,
+        sanitized_file_name=standard_filename,
         storage_path=storage_path,
         mime_type=detected_mime,
         file_size_bytes=len(file_bytes),
@@ -410,10 +419,14 @@ async def submit_document_review(
     # Check Persona completion (RN-15)
     await check_and_update_persona_completion(db, doc.persona_id)
 
+    persona = await db.get(Persona, doc.persona_id)
+    persona_name = persona.name if persona else None
+
     # Publish SSE & Webhooks
     event_payload = {
         "document_id": doc.id,
         "persona_id": doc.persona_id,
+        "persona_name": persona_name,
         "status": "READY",
         "approved_by": current_user.full_name,
     }
@@ -466,10 +479,14 @@ async def reject_document_quality(
         details={"rejection_reason": data.rejection_reason},
     )
 
+    persona = await db.get(Persona, doc.persona_id)
+    persona_name = persona.name if persona else None
+
     # Publish SSE and Webhooks to alert external customer/systems (RN-09)
     event_payload = {
         "document_id": doc.id,
         "persona_id": doc.persona_id,
+        "persona_name": persona_name,
         "status": "REJECTED",
         "rejection_reason": data.rejection_reason,
         "action_required": "RESUBMIT_CLEAR_IMAGE",
