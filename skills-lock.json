@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "skills": {
+    "angular-component": {
+      "source": "analogjs/angular-skills",
+      "sourceType": "github",
+      "skillPath": "skills/angular-component/SKILL.md",
+      "computedHash": "6f2c3ccf3b644fd7feb64b93fa0e333941cdf7bf7bc24a0ad62868c273d1bab9"
+    },
+    "angular-di": {
+      "source": "analogjs/angular-skills",
+      "sourceType": "github",
+      "skillPath": "skills/angular-di/SKILL.md",
+      "computedHash": "8920251229f891325c968da687047e117c5e45c316a6a83c364477b29866c272"
+    },
+    "angular-directives": {
+      "source": "analogjs/angular-skills",
+      "sourceType": "github",
+      "skillPath": "skills/angular-directives/SKILL.md",
+      "computedHash": "1c9e2ec70986aacb2f9698dba76c1facaf493d2119ca1d40f4efa3d78b1bf874"
+    },
+    "angular-forms": {
+      "source": "analogjs/angular-skills",
+      "sourceType": "github",
+      "skillPath": "skills/angular-forms/SKILL.md",
+      "computedHash": "657d2cc5f0018f8e5dc2706f1ab31eb73704b7101346147aeb16a2f9f8bf9363"
+    },
+    "angular-http": {
+      "source": "analogjs/angular-skills",
+      "sourceType": "github",
+      "skillPath": "skills/angular-http/SKILL.md",
+      "computedHash": "98057b1866e3c5554d2deeecc8219043f7a682f33fa6195a736d3a6c46987c1c"
+    },
+    "angular-routing": {
+      "source": "analogjs/angular-skills",
+      "sourceType": "github",
+      "skillPath": "skills/angular-routing/SKILL.md",
+      "computedHash": "2ffea023ef9bc222823b2d104f7a6d2350973defa659e9c71d7702351acc8397"
+    },
+    "angular-signals": {
+      "source": "analogjs/angular-skills",
+      "sourceType": "github",
+      "skillPath": "skills/angular-signals/SKILL.md",
+      "computedHash": "c54dc6ef1b68540ac1e4c0a5c9792653dc0b4a1d5e164fed48832874f898ce09"
+    },
+    "angular-testing": {
+      "source": "analogjs/angular-skills",
+      "sourceType": "github",
+      "skillPath": "skills/angular-testing/SKILL.md",
+      "computedHash": "61e3d3ab9ea2f79aed53a46119fa860a013ca8170478fd90266e027eacfb242c"
+    },
+    "angular-tooling": {
+      "source": "analogjs/angular-skills",
+      "sourceType": "github",
+      "skillPath": "skills/angular-tooling/SKILL.md",
+      "computedHash": "bcb10eec1f6e61fa59d40aa32af189dd172f28393a91163bd3dc64f005af8522"
+    },
+    "daisyui": {
+      "source": "saadeghi/daisyui",
+      "sourceType": "github",
+      "skillPath": "skills/daisyui/SKILL.md",
+      "computedHash": "c762724db0ab971c3dae08e3be1ecf049de461af431de28510066e7bda210581"
+    },
+    "fastapi-pro": {
+      "source": "rmyndharis/antigravity-skills",
+      "sourceType": "github",
+      "skillPath": "skills/fastapi-pro/SKILL.md",
+      "computedHash": "7d0137467a120b4121c68453e6fe63a6d429cef1e2c347c83df60c095a857de0"
+    },
+    "postgresql-table-design": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/database-design/skills/postgresql/SKILL.md",
+      "computedHash": "d7d040ee506a300c08a64b9ef6de9aa677b6d7251e33c3c87e0608f821a9506d"
+    },
+    "sqlalchemy-postgres": {
+      "source": "cfircoo/claude-code-toolkit",
+      "sourceType": "github",
+      "skillPath": "skills/sqlalchemy-postgres/SKILL.md",
+      "computedHash": "6917c10f1ad78f5f1d097eed214f824b458ee2ec917308e98b0d0bb4e4dff961"
+    }
+  }
+}
