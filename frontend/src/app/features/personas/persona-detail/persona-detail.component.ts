@@ -373,8 +373,9 @@ export class PersonaDetailComponent implements OnInit {
   public get clientUploadUrl(): string {
     const link = this.generatedLink();
     if (!link) return '';
+    const token = link.token || link.public_token || '';
     const origin = window.location.origin;
-    return `${origin}/public/upload?token=${link.public_token}`;
+    return `${origin}/public/upload?token=${encodeURIComponent(token)}`;
   }
 
   public loadPersona(): void {

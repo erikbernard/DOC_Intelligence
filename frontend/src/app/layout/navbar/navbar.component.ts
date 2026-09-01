@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { ThemeService } from '../../core/services/theme.service';
 
 @Component({
   selector: 'app-navbar',
@@ -39,6 +40,26 @@ import { NotificationService } from '../../core/services/notification.service';
       </div>
 
       <div class="flex-none items-center space-x-2">
+        <!-- Theme Toggle Button (Light / Dark) -->
+        <button
+          (click)="themeService.toggleTheme()"
+          class="btn btn-ghost btn-circle"
+          [attr.aria-label]="themeService.currentTheme() === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'"
+          [title]="themeService.currentTheme() === 'dark' ? 'Mudar para tema Claro' : 'Mudar para tema Escuro'"
+        >
+          @if (themeService.currentTheme() === 'dark') {
+            <!-- Sun Icon for switching to light -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          } @else {
+            <!-- Moon Icon for switching to dark -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          }
+        </button>
+
         <!-- Notification Dropdown with Real-Time Badge -->
         <div class="dropdown dropdown-end">
           <button tabindex="0" class="btn btn-ghost btn-circle relative" aria-label="Notificações">
@@ -140,6 +161,7 @@ import { NotificationService } from '../../core/services/notification.service';
 export class NavbarComponent {
   public authService = inject(AuthService);
   public notificationService = inject(NotificationService);
+  public themeService = inject(ThemeService);
   private router = inject(Router);
 
   public get userInitials(): string {

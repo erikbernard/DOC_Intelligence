@@ -4,12 +4,18 @@ export interface CollectionLinkCreate {
 }
 
 export interface CollectionLinkResponse {
-  collection_link_id: string;
+  id: string;
   persona_id: string;
-  public_token: string;
-  upload_url: string;
+  token: string;
+  public_token?: string;
+  public_url?: string;
+  upload_url?: string;
   expires_at: string;
-  message: string;
+  max_uses?: number;
+  uses_count?: number;
+  is_active?: boolean;
+  is_expired?: boolean;
+  message?: string;
 }
 
 export interface PublicTokenValidation {

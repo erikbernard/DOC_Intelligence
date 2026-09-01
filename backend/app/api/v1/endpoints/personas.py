@@ -23,13 +23,24 @@ router = APIRouter()
 @router.get("/", response_model=List[PersonaRead])
 async def list_personas(
     status_filter: Optional[PersonaStatus] = Query(None),
+    search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List personas with optional status filter."""
+    """List personas with optional status and search filter."""
     stmt = select(Persona)
     if status_filter:
         stmt = stmt.where(Persona.status == status_filter)
+    if search and search.strip():
+        pattern = f"%{search.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Persona.name.ilike(pattern),
+                Persona.cpf.ilike(pattern),
+                Persona.email.ilike(pattern),
+                Persona.phone.ilike(pattern),
+            )
+        )
 
     stmt = stmt.order_by(Persona.created_at.desc())
     result = await db.execute(stmt)
