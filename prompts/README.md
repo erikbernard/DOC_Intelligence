@@ -20,6 +20,14 @@ Este diretório contém o registro integral e cronológico de todos os prompts d
 | **10** | [`10_portal_publico_camera_guiada_mobile.md`](./10_portal_publico_camera_guiada_mobile.md) | 01/09/2026 01:33 | Refinamento do portal público com câmera ao vivo e retícula de enquadramento. |
 | **11** | [`11_docker_frontend_e_ambientes_prod_dev.md`](./11_docker_frontend_e_ambientes_prod_dev.md) | 01/09/2026 02:09 | Dockerfile multi-stage Nginx, ambientes Prod/Dev e Docker Compose unificado. |
 | **12** | [`12_criacao_pasta_prompts_versionamento.md`](./12_criacao_pasta_prompts_versionamento.md) | 01/09/2026 02:18 | Solicitação de criação e versionamento da pasta `prompts/`. |
+| **13** | [`13_ajuste_mascaras_validacao_e_temas.md`](./13_ajuste_mascaras_validacao_e_temas.md) | 01/09/2026 05:45 | Máscaras de CPF/Telefone/Email, paginação, modal público e temas DaisyUI. |
+| **14** | [`14_gerador_cin_sintetica_e_docs.md`](./14_gerador_cin_sintetica_e_docs.md) | 01/09/2026 06:12 | Documentação do gerador de dados e imagens sintéticas de CIN (`gerar_cin/`). |
+| **15** | [`15_ajuste_navbar_temas_e_camera_mobile.md`](./15_ajuste_navbar_temas_e_camera_mobile.md) | 01/09/2026 09:15 | Temas na Navbar, notificação silenciosa de OCR e câmera mobile vertical com fallback. |
+| **16** | [`16_correcao_upload_publico_persona_e_asyncpg.md`](./16_correcao_upload_publico_persona_e_asyncpg.md) | 01/09/2026 09:45 | Correção de NameError no upload público e de prepared statement no `asyncpg`. |
+| **17** | [`17_documento_decisoes_arquiteturais_adr.md`](./17_documento_decisoes_arquiteturais_adr.md) | 01/09/2026 10:37 | Formatação e revisão técnica do documento de decisões arquiteturais (`O_projeto.md`). |
+| **18** | [`18_correcao_menu_notificacoes_e_rota_conferencia.md`](./18_correcao_menu_notificacoes_e_rota_conferencia.md) | 01/09/2026 10:56 | Resolução da quebra visual do menu de notificações e navegação direta para conferência. |
+| **19** | [`19_padronizacao_nomenclatura_documentos_e_storage.md`](./19_padronizacao_nomenclatura_documentos_e_storage.md) | 01/09/2026 11:08 | Nomenclatura `{tipo}_{persona}_{data}_{codigo_unico}.{ext}` e storage `tipo/persona/data-cod_unico`. |
+| **20** | [`20_git_flow_e_versionamento_prompts.md`](./20_git_flow_e_versionamento_prompts.md) | 01/09/2026 11:19 | Adoção formal de Git Flow, commits semânticos e versionamento contínuo de prompts. |
 
 ---
 
