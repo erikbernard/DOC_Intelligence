@@ -1,0 +1,866 @@
+{
+  "info": {
+    "_postman_id": "doc-intelligence-collection-v1",
+    "name": "DOC_Intelligence API",
+    "description": "Coleção completa de requisições Postman para a API de Document Intelligence (OCR CIN, Onboarding, MinIO, Filas, Concorrência e Webhooks).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00. Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Verifica o status de saúde da API e conectividade geral."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01. Autenticação & Usuários",
+      "item": [
+        {
+          "name": "Login (JSON) -> Salva Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var data = pm.response.json();",
+                  "    pm.environment.set('bearer_token', data.access_token);",
+                  "    pm.test('Token JWT capturado com sucesso', function () {",
+                  "        pm.expect(data.access_token).to.be.a('string');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Autentica o Usuário Sistema (Admin/Operador) e salva automaticamente o JWT na variável `bearer_token`."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (OAuth2 Form)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "{{admin_email}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{admin_password}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login/form",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login", "form"]
+            },
+            "description": "Login compatível com OAuth2 Password Bearer."
+          },
+          "response": []
+        },
+        {
+          "name": "Meu Perfil (/me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Retorna os dados do usuário autenticado no momento."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02. Personas (Candidatos Onboarding)",
+      "item": [
+        {
+          "name": "Criar Persona -> Salva persona_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var data = pm.response.json();",
+                  "    pm.environment.set('persona_id', data.id);",
+                  "    pm.test('Persona criada e ID capturado', function () {",
+                  "        pm.expect(data.id).to.be.a('string');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Carlos Alberto Ferreira\",\n  \"email\": \"carlos.ferreira@example.com\",\n  \"cpf\": \"12345678909\",\n  \"phone\": \"+5511999998888\",\n  \"required_document_types\": [\"CIN\"],\n  \"extra_metadata\": {\n    \"origem\": \"portal_web\",\n    \"departamento\": \"RH\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/personas/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "personas", ""]
+            },
+            "description": "Cadastra uma nova Persona para processo de onboarding e extração de documentos."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Personas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/personas/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "personas", ""],
+              "query": [
+                {
+                  "key": "status_filter",
+                  "value": "PENDING",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista todas as Personas cadastradas."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalhes da Persona (Métricas RN-15)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/personas/{{persona_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "personas", "{{persona_id}}"]
+            },
+            "description": "Retorna o perfil completo da Persona com métricas de completude de onboarding (RN-15)."
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar Persona",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Carlos Alberto Ferreira Filho\",\n  \"phone\": \"+5511988887777\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/personas/{{persona_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "personas", "{{persona_id}}"]
+            },
+            "description": "Atualiza dados cadastrais da Persona."
+          },
+          "response": []
+        },
+        {
+          "name": "Deletar Persona (Hard Delete Cascade - RN-13)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/personas/{{persona_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "personas", "{{persona_id}}"]
+            },
+            "description": "Executa Hard Delete em cascata removendo irreversivelmente todos os documentos do MinIO e banco relacional (LGPD Right to be Forgotten - RN-13)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03. Templates de Documentos",
+      "item": [
+        {
+          "name": "Listar Templates (CIN e RG) -> Salva template_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var list = pm.response.json();",
+                  "    if (list.length > 0) {",
+                  "        pm.environment.set('template_id', list[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/templates/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "templates", ""]
+            },
+            "description": "Lista templates de extração cadastrados (inclui CIN e RG_ANTIGO criados automaticamente no seed)."
+          },
+          "response": []
+        },
+        {
+          "name": "Criar Template Customizado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"CNH\",\n  \"name\": \"Carteira Nacional de Habilitação\",\n  \"description\": \"Template para extração da CNH com CPF, Número de Registro e Categoria\",\n  \"document_type\": \"CNH\",\n  \"fields_schema\": [\n    {\n      \"name\": \"cpf\",\n      \"label\": \"CPF\",\n      \"data_type\": \"string\",\n      \"required\": true,\n      \"min_confidence\": 0.85\n    },\n    {\n      \"name\": \"nome_completo\",\n      \"label\": \"Nome Completo\",\n      \"data_type\": \"string\",\n      \"required\": true,\n      \"min_confidence\": 0.85\n    },\n    {\n      \"name\": \"registro_cnh\",\n      \"label\": \"Nº Registro\",\n      \"data_type\": \"string\",\n      \"required\": true,\n      \"min_confidence\": 0.85\n    }\n  ],\n  \"validation_rules\": {\n    \"validate_cpf\": true\n  },\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/templates/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "templates", ""]
+            },
+            "description": "Cria um novo template de documento definindo campos esperados e validações."
+          },
+          "response": []
+        },
+        {
+          "name": "Obter Template por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/templates/{{template_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "templates", "{{template_id}}"]
+            },
+            "description": "Retorna o schema e regras de validação de um template."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04. Links de Coleta Segura (RN-11, RN-12)",
+      "item": [
+        {
+          "name": "Gerar Link Seguro (48h) -> Salva Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var data = pm.response.json();",
+                  "    pm.environment.set('collection_token', data.token);",
+                  "    pm.environment.set('collection_link_id', data.id);",
+                  "    pm.test('Token efêmero de 48h capturado', function () {",
+                  "        pm.expect(data.token).to.be.a('string');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"persona_id\": \"{{persona_id}}\",\n  \"expires_hours\": 48,\n  \"max_uses\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/collection-links/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collection-links", ""]
+            },
+            "description": "Gera link de coleta de documentos seguro para envio por WhatsApp/E-mail, com validade de 48h (RN-12)."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar Status do Link de Coleta",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/collection-links/{{collection_link_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "collection-links", "{{collection_link_id}}"]
+            },
+            "description": "Consulta uso, expiração e status de ativação do link de coleta."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05. Upload Público (Usuário Comum - RN-11)",
+      "item": [
+        {
+          "name": "Upload Público via Token Efêmero -> Salva document_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 202) {",
+                  "    var data = pm.response.json();",
+                  "    pm.environment.set('document_id', data.document_id);",
+                  "    pm.test('Documento público aceito e enfileirado no Celery', function () {",
+                  "        pm.expect(data.document_id).to.be.a('string');",
+                  "        pm.expect(data.status).to.eql('PENDING');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Selecione uma imagem (JPEG/PNG) ou PDF da identidade CIN"
+                },
+                {
+                  "key": "document_type",
+                  "value": "CIN",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/public/upload?token={{collection_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "public", "upload"],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{collection_token}}"
+                }
+              ]
+            },
+            "description": "Endpoint público utilizado pelo cliente final para upload seguro de documento com Token Efêmero (RN-11). Executa inspeção multicamada em memória e enfileira no Celery."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06. Documentos & Fila de Conferência",
+      "item": [
+        {
+          "name": "Upload Interno (Operador Sistema) -> Salva document_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 202) {",
+                  "    var data = pm.response.json();",
+                  "    pm.environment.set('document_id', data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "persona_id",
+                  "value": "{{persona_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "document_type",
+                  "value": "CIN",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "upload"]
+            },
+            "description": "Upload direto de documento por operador autenticado."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Documentos (Fila de Conferência)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/?status_filter=NEEDS_REVIEW",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", ""],
+              "query": [
+                {
+                  "key": "status_filter",
+                  "value": "NEEDS_REVIEW",
+                  "description": "Filtra documentos retidos para revisão humana (RN-01, RN-04)"
+                },
+                {
+                  "key": "persona_id",
+                  "value": "{{persona_id}}",
+                  "disabled": true
+                },
+                {
+                  "key": "in_review",
+                  "value": "false",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lista documentos com múltiplos filtros (status, persona, data)."
+          },
+          "response": []
+        },
+        {
+          "name": "Detalhes do Documento (com Preview URL)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}"]
+            },
+            "description": "Retorna o documento com dados extraídos pelo OCR, confidence score individual por campo e preview_url temporária pré-assinada do MinIO."
+          },
+          "response": []
+        },
+        {
+          "name": "Visualizar / Stream do Arquivo Original",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}/file",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}", "file"]
+            },
+            "description": "Streaming autenticado do arquivo original (PNG, JPEG ou PDF) para visualização lado a lado na tela de conferência."
+          },
+          "response": []
+        },
+        {
+          "name": "Bloquear Documento para Revisão (Lock Pessimista RN-07)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}/lock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}", "lock"]
+            },
+            "description": "Aplica lock pessimista no Redis com TTL de 10 minutos (RN-07, RN-08). Retorna HTTP 409 se outro operador estiver revisando."
+          },
+          "response": []
+        },
+        {
+          "name": "Desbloquear Documento (Unlock)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}/unlock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}", "unlock"]
+            },
+            "description": "Libera o lock antes do fim do TTL caso o operador cancele a revisão."
+          },
+          "response": []
+        },
+        {
+          "name": "Aprovar Revisão Manual (PUT /review - RN-10)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"template_code\": \"CIN\",\n  \"corrected_data\": {\n    \"cpf\": \"123.456.789-09\",\n    \"nome_completo\": \"CARLOS ALBERTO FERREIRA\",\n    \"data_nascimento\": \"15/05/1990\",\n    \"naturalidade\": \"SÃO PAULO\",\n    \"nacionalidade\": \"BRASILEIRA\",\n    \"data_validade\": \"15/05/2034\"\n  },\n  \"notes\": \"Campos conferidos, template corrigido para CIN e aprovado manualmente pelo operador.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}/review",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}", "review"]
+            },
+            "description": "Salva a revisão manual, permite reatribuir o template_code correto (ex: CIN ou RG_ANTIGO), marca como READY, limpa validation_errors e torna o registro imutável registrando approved_by e approved_at (RN-10)."
+          },
+          "response": []
+        },
+        {
+          "name": "Rejeitar Imagem Ilegível (POST /reject - RN-09)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rejection_reason\": \"Documento desfocado e com reflexo sobre os números. Por favor, envie uma foto nítida e bem iluminada.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/documents/{{document_id}}/reject",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "documents", "{{document_id}}", "reject"]
+            },
+            "description": "Rejeição definitiva por qualidade borrada/ilegível (RN-09), disparando evento SSE/Webhook para solicitação de reenvio pelo cliente."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07. Eventos em Tempo Real (SSE)",
+      "item": [
+        {
+          "name": "Conectar ao Stream SSE (/events/stream)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/events/stream?token={{bearer_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "events", "stream"],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{bearer_token}}"
+                },
+                {
+                  "key": "persona_id",
+                  "value": "{{persona_id}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Abre streaming Server-Sent Events (SSE) via Redis Pub/Sub para atualização em tempo real no frontend (document.processing, document.ready, document.needs_review, persona.completed)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08. Webhooks de Integração",
+      "item": [
+        {
+          "name": "Cadastrar Webhook -> Salva webhook_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var data = pm.response.json();",
+                  "    pm.environment.set('webhook_id', data.id);",
+                  "    pm.test('Webhook registrado e ID capturado', function () {",
+                  "        pm.expect(data.id).to.be.a('string');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target_url\": \"https://webhook.site/test-endpoint\",\n  \"secret_key\": \"secret-hmac-sha256-key-32-chars-long\",\n  \"subscribed_events\": [\n    \"document.ready\",\n    \"document.needs_review\",\n    \"document.failed\",\n    \"document.rejected\",\n    \"persona.completed\"\n  ],\n  \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/webhooks/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webhooks", ""]
+            },
+            "description": "Registra endpoint de webhook HTTP externo. Notificações são assinadas com HMAC-SHA256 e enviadas via Celery com retentativas."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar Webhooks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/webhooks/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webhooks", ""]
+            },
+            "description": "Lista webhooks cadastrados globalmente no sistema."
+          },
+          "response": []
+        },
+        {
+          "name": "Obter Webhook por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/webhooks/{{webhook_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webhooks", "{{webhook_id}}"]
+            },
+            "description": "Consulta detalhes de um webhook configurado."
+          },
+          "response": []
+        },
+        {
+          "name": "Logs de Entrega do Webhook",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/webhooks/{{webhook_id}}/logs?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webhooks", "{{webhook_id}}", "logs"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Lista o histórico de tentativas de entrega HTTP, status code e respostas do webhook."
+          },
+          "response": []
+        },
+        {
+          "name": "Excluir Webhook",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/webhooks/{{webhook_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "webhooks", "{{webhook_id}}"]
+            },
+            "description": "Exclui a assinatura de webhook."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
