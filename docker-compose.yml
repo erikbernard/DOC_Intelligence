@@ -80,6 +80,14 @@ services:
       minio:
         condition: service_healthy
     environment:
+      - PROJECT_NAME=${PROJECT_NAME:-DOC_Intelligence Backend}
+      - API_V1_STR=${API_V1_STR:-/api/v1}
+      - DEBUG=${DEBUG:-false}
+      - SECRET_KEY=${SECRET_KEY:-super-secret-key-change-in-production-use-strong-random-bytes}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      - COLLECTION_LINK_EXPIRE_HOURS=${COLLECTION_LINK_EXPIRE_HOURS:-48}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-["*"]}
       - POSTGRES_SERVER=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
@@ -88,6 +96,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-doc_intelligence}
       - SYNC_DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-doc_intelligence}
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
@@ -95,9 +105,20 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-doc-intelligence-storage}
-      - MINIO_SECURE=false
-      - MINIO_PUBLIC_URL=http://localhost:9000
+      - MINIO_SECURE=${MINIO_SECURE:-false}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
       - OCR_ENGINE=${OCR_ENGINE:-mock}
+      - OCR_CONFIDENCE_THRESHOLD=${OCR_CONFIDENCE_THRESHOLD:-0.85}
+      - TEMPLATE_DEDUCTION_THRESHOLD=${TEMPLATE_DEDUCTION_THRESHOLD:-0.90}
+      - FUZZY_MATCH_MIN_RATIO=${FUZZY_MATCH_MIN_RATIO:-0.80}
+      - FUZZY_MATCH_MAX_AUTO_RATIO=${FUZZY_MATCH_MAX_AUTO_RATIO:-0.99}
+      - LOCK_TTL_SECONDS=${LOCK_TTL_SECONDS:-600}
+      - MAX_FILE_SIZE_BYTES=${MAX_FILE_SIZE_BYTES:-26214400}
+      - MAX_IMAGE_PIXELS=${MAX_IMAGE_PIXELS:-89000000}
+      - MAX_PDF_PAGES=${MAX_PDF_PAGES:-10}
+      - PDF_RASTERIZE_DPI=${PDF_RASTERIZE_DPI:-300}
+      - FIRST_SUPERUSER_EMAIL=${FIRST_SUPERUSER_EMAIL:-admin@docintelligence.com}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:-adminpassword123}
     ports:
       - "8000:8000"
     healthcheck:
@@ -122,6 +143,14 @@ services:
       minio:
         condition: service_healthy
     environment:
+      - PROJECT_NAME=${PROJECT_NAME:-DOC_Intelligence Backend}
+      - API_V1_STR=${API_V1_STR:-/api/v1}
+      - DEBUG=${DEBUG:-false}
+      - SECRET_KEY=${SECRET_KEY:-super-secret-key-change-in-production-use-strong-random-bytes}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      - COLLECTION_LINK_EXPIRE_HOURS=${COLLECTION_LINK_EXPIRE_HOURS:-48}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-["*"]}
       - POSTGRES_SERVER=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
@@ -130,6 +159,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-doc_intelligence}
       - SYNC_DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-doc_intelligence}
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
@@ -137,9 +168,20 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-doc-intelligence-storage}
-      - MINIO_SECURE=false
-      - MINIO_PUBLIC_URL=http://localhost:9000
+      - MINIO_SECURE=${MINIO_SECURE:-false}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
       - OCR_ENGINE=${OCR_ENGINE:-mock}
+      - OCR_CONFIDENCE_THRESHOLD=${OCR_CONFIDENCE_THRESHOLD:-0.85}
+      - TEMPLATE_DEDUCTION_THRESHOLD=${TEMPLATE_DEDUCTION_THRESHOLD:-0.90}
+      - FUZZY_MATCH_MIN_RATIO=${FUZZY_MATCH_MIN_RATIO:-0.80}
+      - FUZZY_MATCH_MAX_AUTO_RATIO=${FUZZY_MATCH_MAX_AUTO_RATIO:-0.99}
+      - LOCK_TTL_SECONDS=${LOCK_TTL_SECONDS:-600}
+      - MAX_FILE_SIZE_BYTES=${MAX_FILE_SIZE_BYTES:-26214400}
+      - MAX_IMAGE_PIXELS=${MAX_IMAGE_PIXELS:-89000000}
+      - MAX_PDF_PAGES=${MAX_PDF_PAGES:-10}
+      - PDF_RASTERIZE_DPI=${PDF_RASTERIZE_DPI:-300}
+      - FIRST_SUPERUSER_EMAIL=${FIRST_SUPERUSER_EMAIL:-admin@docintelligence.com}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:-adminpassword123}
     command: celery -A app.workers.celery_app.celery_app worker --loglevel=info --concurrency=2 -Q default,ocr,webhooks
 
   frontend:
@@ -155,7 +197,7 @@ services:
       - "80:80"
       - "4200:80"
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
