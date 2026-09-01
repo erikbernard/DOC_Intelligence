@@ -17,6 +17,7 @@ Plataforma completa de extração, processamento, validação e auditoria de doc
 6. [Regras de Negócio Implementadas (RN-01 a RN-15)](#6-regras-de-negócio-implementadas-rn-01-a-rn-15)
 7. [Qualidade e Testes Automatizados](#7-qualidade-e-testes-automatizados)
 8. [Governança Git Flow e Releases](#8-governança-git-flow-e-releases)
+9. [O Projeto e Decisões de Arquitetura (ADR)](#9-o-projeto-e-decisões-de-arquitetura-adr)
 
 ---
 
@@ -90,6 +91,7 @@ O desenvolvimento do sistema seguiu rigorosamente os planos e documentos conceit
 
 | Documento / Ferramenta | Função / Descrição |
 | :--- | :--- |
+| [`O_projeto.md`](./O_projeto.md) | **O Projeto e Decisões Iniciais (ADR)**: Registro formal da concepção, motivação do problema, pesquisa preliminar (Deep Research), trade-offs, descarte de VLMs e justificativa da stack. |
 | [`PLANO_DE_IMPLEMENTACAO_BACKEND.md`](./PLANO_DE_IMPLEMENTACAO_BACKEND.md) | **Plano Mestre do Backend**: Arquitetura em camadas, regras RN-01 a RN-15, Strategy + Adapter, schemas Pydantic v2, Celery e MinIO S3. |
 | [`PLANO_DE_IMPLEMENTACAO_FROTEND.md`](./PLANO_DE_IMPLEMENTACAO_FROTEND.md) | **Plano Mestre do Frontend**: Arquitetura Angular 21 Standalone, Signal Stores, DaisyUI, tela de conferência Split-Screen e portal mobile de upload. |
 | [`gerar-cin/README.md`](./gerar-cin/README.md) | **Gerador de Amostras de CIN**: Ferramenta visual client-side (100% offline) para gerar imagens e PDFs realistas da CIN com CPF válido (Módulo 11) para testes de OCR. |
@@ -317,6 +319,35 @@ O repositório é gerenciado através do fluxo **Git Flow**:
   * **`v1.1.0`**: Frontend SPA Angular 21 (Signals, DaisyUI, Conferência Split-Screen, Câmera Guiada Mobile, Dockerfile e Governança de IA).
 * **`develop`:** Branch ativa de integração contínua.
 * **Branches de Feature:** Mescladas exclusivamente com *merge commits* semânticos (`--no-ff`).
+
+---
+
+## 9. O Projeto e Decisões de Arquitetura (ADR)
+
+O documento integral de especificação inicial, motivação do problema, pesquisa e registro formal das decisões arquiteturais encontra-se em [`O_projeto.md`](./O_projeto.md).
+
+### 💡 Síntese das Decisões e Justificativas:
+
+1. **Problemática e Complexidade do OCR**:
+   * Diferente de problemas convencionais de OCR (como cupons fiscais padronizados), documentos de identidade (CIN, RG, CNH) possuem ruídos, texturas de segurança, carimbos, orientação variável e diferentes padrões estaduais.
+   * Foi realizada uma pesquisa preliminar aprofundada (*Deep Research*) documentada em [`prompts/pesquisa/`](./prompts/pesquisa/) para avaliar o estado da arte de motores abertos e pipelines híbridos.
+
+2. **Abordagem de OCR e Padrões Strategy / Adapter**:
+   * **Escolha**: Combinação de **EasyOCR** com filtros de visão computacional em **OpenCV** (deskew, rotação, normalização espacial e binarização adaptativa).
+   * **Descarte de VLMs (ex.: Qwen2.5-VL)**: Descartados por demandarem hardware com GPU dedicada de alta performance e alto custo computacional, inviabilizando a execução leve em CPU ou servidores locais comuns.
+   * **Padrões de Projeto**: Uso de **Strategy** e **Adapter** para isolar o motor de OCR, tornando o pipeline modular e *plug-and-play* para alternar motores sem afetar as regras de negócio.
+
+3. **Justificativa da Stack Tecnológica**:
+   * **Python 3.11 + FastAPI**: Ecossistema de ponta para visão computacional, APIs assíncronas de alta performance e tipagem rigorosa via Pydantic v2.
+   * **Celery + Redis**: Fila assíncrona indispensável para desacoplar o processamento pesado de OCR das requisições HTTP e garantir mensageria SSE em tempo real.
+   * **PostgreSQL 16**: Banco relacional robusto com conformidade transacional ACID, auditoria e tipos estruturados (JSONB).
+   * **MinIO S3**: Armazenamento de objetos seguro com assinatura SigV4, eliminando a má prática de salvar imagens em Base64 no banco relacional.
+   * **Angular 21 + Tailwind + DaisyUI**: Framework SPA tipado e reativo com Signals, OnPush e produtividade máxima na construção de UI moderna.
+
+4. **Modelo de Domínio e Fluxo**:
+   * Criação da entidade **Persona** como titular central dos documentos.
+   * Coleta pública via link temporário com token assinado e câmera com retícula de enquadramento.
+   * Extração assíncrona com bifurcação: aprovação automática (*auto-approval* para documentos de alta confiança) vs. conferência humana (*human-in-the-loop* com locking pessimista para documentos com pendências).
 
 ---
 
