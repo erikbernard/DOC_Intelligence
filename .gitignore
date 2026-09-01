@@ -69,6 +69,11 @@ ehthumbs_vista.db
 [Dd]esktop.ini
 .DS_Store
 
+# Node & Frontend
+node_modules/
+.angular/
+dist/
+
 # IDEs
 .idea/
 .vscode/
