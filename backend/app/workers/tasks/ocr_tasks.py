@@ -38,11 +38,15 @@ def process_document_ocr(self, document_id: str):
         session.commit()
         session.refresh(doc)
 
+        persona = session.get(Persona, doc.persona_id)
+        persona_name = persona.name if persona else None
+
         publish_event(
             event_type="document.processing",
             payload={
                 "document_id": doc.id,
                 "persona_id": doc.persona_id,
+                "persona_name": persona_name,
                 "status": doc.status.value,
             },
             persona_id=doc.persona_id,
@@ -130,10 +134,15 @@ def process_document_ocr(self, document_id: str):
                     )
 
         # 7. Publish Event via SSE and Webhooks
+        if not persona:
+            persona = session.get(Persona, doc.persona_id)
+        persona_name = persona.name if persona else None
+
         event_name = f"document.{doc.status.value.lower()}"
         event_payload = {
             "document_id": doc.id,
             "persona_id": doc.persona_id,
+            "persona_name": persona_name,
             "status": doc.status.value,
             "confidence_score": doc.confidence_score,
             "extracted_data": doc.extracted_data,
@@ -171,10 +180,14 @@ def process_document_ocr(self, document_id: str):
                 doc.failure_reason = str(exc)
                 session.commit()
 
+                persona = session.get(Persona, doc.persona_id)
+                persona_name = persona.name if persona else None
+
                 # Notify failure via SSE and Webhooks
                 fail_payload = {
                     "document_id": doc.id,
                     "persona_id": doc.persona_id,
+                    "persona_name": persona_name,
                     "status": "FAILED",
                     "failure_reason": str(exc),
                 }
