@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de CIN Fictícia (Baseado em Imagem)</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Bibliotecas para Exportação e QR Code -->
+    <script src="assets.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Dimensões padrão do cartão (Proporção ID-1) */
+        .cin-card {
+            width: 856px;
+            height: 540px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #d1d5db;
+            background-color: #fff;
+            color: #000;
+        }
+
+        /* Fundos puxando os arquivos locais fornecidos */
+        .cin-front {
+            background-image: url('img (1).jfif');
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .cin-back {
+            background-image: url('img (2).jfif');
+            /* A imagem do verso tem duas partes, então focamos na metade superior do documento */
+            background-size: 100% 200%;
+            background-position: top center;
+            background-repeat: no-repeat;
+        }
+
+        /* Textos Injetados */
+        .din-text {
+            position: absolute;
+            font-size: 17px;
+            font-weight: 700;
+            color: #1a1a1a;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+
+        /* Máscaras para cobrir os dados fixos da imagem original */
+        .mask {
+            position: absolute;
+            background-color: #eaf1e3;
+            /* Cor que se camufla com o fundo amarelo/esverdeado */
+            z-index: 5;
+            border-radius: 2px;
+            filter: blur(1px);
+            /* Suaviza as bordas da máscara para misturar melhor */
+        }
+
+        /* Estilo da Assinatura */
+        .assinatura-text {
+            position: absolute;
+            font-size: 32px;
+            color: #000;
+            font-family: 'Brush Script MT', 'Dancing Script', cursive;
+            z-index: 10;
+            transform: rotate(-2deg);
+        }
+
+        /* Container de exportação escondido */
+        #render-container {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #004a3e;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="text-gray-800 h-screen flex flex-col">
+
+    <header
+        class="bg-white shadow-sm border-b p-4 flex flex-col md:flex-row justify-between items-center gap-4 z-10 relative">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <svg class="w-8 h-8 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2">
+                    </path>
+                </svg>
+                Gerador CIN (Fundo Fixo)
+            </h1>
+            <p class="text-sm text-gray-500">Usa os modelos "img (1).jfif" (frente) e "img (2).jfif" (verso)</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 bg-gray-50 p-2 rounded-lg border">
+            <div class="flex items-center gap-2">
+                <label for="qtd" class="text-sm font-semibold text-gray-700">Qtd:</label>
+                <input type="number" id="qtd" value="1" min="1" max="50"
+                    class="w-16 p-2 border rounded text-center focus:ring-2 focus:ring-green-500 outline-none bg-white text-sm font-medium">
+            </div>
+
+            <div class="flex items-center gap-2">
+                <label for="formato" class="text-sm font-semibold text-gray-700">Formato:</label>
+                <select id="formato" class="p-2 border rounded bg-white text-sm focus:ring-2 focus:ring-green-500 outline-none font-medium cursor-pointer">
+                    <option value="png" selected>PNG (.png)</option>
+                    <option value="jpeg">JPG (.jpg)</option>
+                    <option value="webp">WEBP (.webp)</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <label for="escala" class="text-sm font-semibold text-gray-700">Resolução:</label>
+                <select id="escala" class="p-2 border rounded bg-white text-sm focus:ring-2 focus:ring-green-500 outline-none font-medium cursor-pointer">
+                    <option value="2" selected>2x (Alta Definição)</option>
+                    <option value="3">3x (Ultra HD 300 DPI)</option>
+                    <option value="1">1x (Padrão)</option>
+                </select>
+            </div>
+
+            <button onclick="gerarNovas()"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2 font-semibold text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Gerar
+            </button>
+
+            <button onclick="exportarPDF()" id="btn-pdf"
+                class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2 font-semibold text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Baixar PDF
+            </button>
+
+            <button onclick="exportarZIP()" id="btn-zip"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2 font-semibold text-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Baixar ZIP
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-auto p-8" id="main-scroll">
+        <div id="loading-overlay" class="hidden flex-col items-center justify-center py-12">
+            <div class="loader mb-4"></div>
+            <p class="text-gray-600 font-semibold" id="loading-text">Processando...</p>
+        </div>
+
+        <!-- Área onde os cartões aparecem na tela (reduzidos para caber) -->
+        <div id="preview-container" class="flex flex-col gap-12 items-center origin-top"
+            style="transform: scale(0.85); transform-origin: top center;">
+        </div>
+    </main>
+
+    <!-- Onde os cartões são gerados em tamanho real de forma invisível -->
+    <div id="render-container"></div>
+
+    <template id="cin-template">
+        <div class="flex flex-col items-center gap-3 mb-8 cin-wrapper">
+            <!-- Barra de identificação e download individual -->
+            <div class="flex items-center justify-between w-full max-w-[1744px] px-2 text-xs text-gray-500 font-medium">
+                <span class="card-badge bg-gray-200 text-gray-700 px-3 py-1 rounded font-semibold text-sm">Cartão</span>
+                <div class="flex flex-wrap gap-2">
+                    <label class="hover:text-purple-700 hover:bg-purple-50 px-3 py-1.5 rounded border border-gray-300 bg-white transition flex items-center gap-1.5 shadow-sm font-medium cursor-pointer">
+                        <svg class="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        Trocar Foto
+                        <input type="file" accept="image/*" class="hidden" onchange="trocarFoto(this)">
+                    </label>
+                    <button onclick="baixarIndividual(this, 'frente')" class="hover:text-green-700 hover:bg-green-50 px-3 py-1.5 rounded border border-gray-300 bg-white transition flex items-center gap-1.5 shadow-sm font-medium">
+                        <svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Baixar Frente (<span class="btn-ext-label">PNG</span>)
+                    </button>
+                    <button onclick="baixarIndividual(this, 'verso')" class="hover:text-blue-700 hover:bg-blue-50 px-3 py-1.5 rounded border border-gray-300 bg-white transition flex items-center gap-1.5 shadow-sm font-medium">
+                        <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Baixar Verso (<span class="btn-ext-label">PNG</span>)
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-8 items-center justify-center">
+                <!-- FRENTE (img (1).jfif) -->
+                <div class="cin-card cin-front rounded-xl shadow-lg">
+                    <!-- Máscaras (Tampam os dados de exemplo pré-impressos na imagem) -->
+                    <div class="" style="top: 315px; left: 532px; width: 45px; height: 26px;"></div>
+                    <!-- Máscara M (Sexo) -->
+                    <div class="" style="top: 433px; left: 268px; width: 235px; height: 28px;"></div>
+                    <!-- Máscara MORADA NOVA/CE (Naturalidade) -->
+                    <div class="" style="top: 373px; left: 532px; width: 145px; height: 28px;"></div>
+                    <!-- Máscara 25/05/2036 (Validade) -->
+
+                    <!-- Textos Dinâmicos da Frente -->
+                    <!-- 1. Nome -->
+                    <div class="din-text data-nome"
+                        style="top: 215px; left: 270px; max-width: 550px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        NOME COMPLETO</div>
+                    <!-- 2. Nome Social -->
+                    <div class="din-text data-nome-social text-gray-500"
+                        style="top: 255px; left: 270px; font-weight: 500; font-size: 15px;">--------------------</div>
+                    <!-- 3. CPF & Sexo -->
+                    <div class="din-text data-cpf" style="top: 330px; left: 270px; letter-spacing: 0.5px;">000.000.000-00
+                    </div>
+                    <div class="din-text data-sexo" style="top: 330px; left: 536px;">M</div>
+                    <!-- 4. Data de Nascimento & Nacionalidade -->
+                    <div class="din-text data-nascimento" style="top: 378px; left: 270px;">01/01/2000</div>
+                    <div class="din-text data-nacionalidade" style="top: 378px; left: 536px;">BRA</div>
+                    <!-- 5. Naturalidade & Validade -->
+                    <div class="din-text data-naturalidade" style="top: 422px; left: 270px; font-size: 15px;">FORTALEZA/CE
+                    </div>
+                    <div class="din-text data-validade" style="top: 422px; left: 536px;">01/01/2034</div>
+
+                    <!-- 6. Assinatura do Titular -->
+                    <div class="assinatura-text data-assinatura" style="top: 455px; left: 300px;">Assinatura</div>
+
+                    <!-- Foto de Perfil 3x4 -->
+                    <div class="absolute"
+                        style="top: 198px; left: 46px; width: 188px; height: 248px; background-color: #e2e8f0; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                        <img src="" class="w-full h-full object-cover data-foto" alt="Foto do Titular">
+                    </div>
+                </div>
+
+                <!-- VERSO (img (2).jfif) -->
+                <div class="cin-card cin-back rounded-xl shadow-lg">
+                    <!-- QR Code (posicionado na área clara à esquerda) -->
+                    <div class="absolute bg-white p-2 rounded shadow-sm border border-gray-200 flex items-center justify-center"
+                        style="top: 45px; left: 45px; width: 170px; height: 170px;">
+                        <div class="qr-code-container w-full h-full flex items-center justify-center"></div>
+                    </div>
+
+                    <!-- Textos Dinâmicos do Verso -->
+                    <!-- Filiação (Abaixo do label 'Filiação / Filiation') -->
+                    <div class="din-text data-mae"
+                        style="top: 119px; left: 270px; font-size: 14px; max-width: 550px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        NOME DA MÃE</div>
+                    <div class="din-text data-pai"
+                        style="top: 154px; left: 270px; font-size: 14px; max-width: 550px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        NOME DO PAI</div>
+
+                    <!-- Local e Data de Emissão (Abaixo dos labels correspondentes no rodapé) -->
+                    <div class="din-text data-local-emissao" style="top: 441px; left: 270px; font-size: 14px;">FORTALEZA/CE
+                    </div>
+                    <div class="din-text data-emissao" style="top: 442px; left: 690px; font-size: 14px;">01/01/2024</div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Bancos de dados simulados
+        const nomesFemininos = ["Maria", "Ana", "Francisca", "Antônia", "Adriana", "Juliana", "Marcia", "Fernanda", "Patricia", "Aline", "Camila", "Beatriz", "Larissa", "Mariana", "Gabriela"];
+        const nomesMasculinos = ["José", "João", "Antônio", "Francisco", "Carlos", "Paulo", "Pedro", "Lucas", "Luiz", "Marcos", "Gabriel", "Mateus", "Rafael", "Felipe", "Rodrigo"];
+        const sobrenomes = ["Silva", "Santos", "Oliveira", "Souza", "Rodrigues", "Ferreira", "Alves", "Pereira", "Lima", "Gomes", "Costa", "Ribeiro", "Martins", "Carvalho", "Almeida"];
+        const cidadesCE = ["FORTALEZA/CE", "CAUCAIA/CE", "JUAZEIRO DO NORTE/CE", "SOBRAL/CE", "CRATO/CE", "ITAPIPOCA/CE", "MARACANAÚ/CE", "QUIXADÁ/CE", "IGUATU/CE"];
+
+        function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        function randomItem(arr) { return arr[randomInt(0, arr.length - 1)]; }
+
+        function gerarCPF() {
+            const n = () => randomInt(0, 9);
+            return `${n()}${n()}${n()}.${n()}${n()}${n()}.${n()}${n()}${n()}-${n()}${n()}`;
+        }
+
+        function formatarData(data) {
+            return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        // Gerador local de Fotos 3x4 estilo estúdio 100% offline (Elimina problemas de CORS/Tainted Canvas)
+        function gerarFoto3x4(sexo = 'M', seed = 0) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 400;
+            const ctx = canvas.getContext('2d');
+
+            const skinTones = [
+                { main: '#f9d3b4', shadow: '#e5b894', lips: '#d88b85' },
+                { main: '#e8be99', shadow: '#d0a27a', lips: '#c77872' },
+                { main: '#d59a68', shadow: '#ba7d4a', lips: '#a85b57' },
+                { main: '#a86f44', shadow: '#8c542c', lips: '#844240' },
+                { main: '#704323', shadow: '#562f14', lips: '#5c2d2d' },
+                { main: '#ffe2cd', shadow: '#f0c7aa', lips: '#e59590' }
+            ];
+
+            const hairColors = [
+                '#1a110b', '#2b1b10', '#3d2314', '#5a3825', '#1e1e1e', '#402613', '#6a4e32', '#141414'
+            ];
+
+            const clothesColors = [
+                '#1e293b', '#0f172a', '#334155', '#1e3a8a', '#1e293b', '#374151', '#4c1d95', '#14532d', '#7f1d1d'
+            ];
+
+            const skin = skinTones[(seed + 2) % skinTones.length];
+            const hair = hairColors[(seed + 3) % hairColors.length];
+            const cloth = clothesColors[(seed + 1) % clothesColors.length];
+
+            // 1. Fundo Gradiente Estúdio
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, 400);
+            bgGrad.addColorStop(0, '#ccd7e2');
+            bgGrad.addColorStop(0.5, '#e4ebf2');
+            bgGrad.addColorStop(1, '#f1f5f9');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, 300, 400);
+
+            // Vignette suave
+            const radGrad = ctx.createRadialGradient(150, 180, 50, 150, 180, 220);
+            radGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+            radGrad.addColorStop(1, 'rgba(180, 195, 210, 0.5)');
+            ctx.fillStyle = radGrad;
+            ctx.fillRect(0, 0, 300, 400);
+
+            // Cabelo de fundo (para feminino)
+            if (sexo === 'F' && (seed % 3 !== 0)) {
+                ctx.fillStyle = hair;
+                ctx.beginPath();
+                ctx.ellipse(150, 210, 75, 110, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 2. Ombros e Roupa
+            ctx.fillStyle = cloth;
+            ctx.beginPath();
+            ctx.moveTo(30, 400);
+            ctx.quadraticCurveTo(50, 310, 100, 300);
+            ctx.quadraticCurveTo(150, 320, 200, 300);
+            ctx.quadraticCurveTo(250, 310, 270, 400);
+            ctx.closePath();
+            ctx.fill();
+
+            // Gola da camisa
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(125, 300);
+            ctx.lineTo(150, 335);
+            ctx.lineTo(175, 300);
+            ctx.closePath();
+            ctx.fill();
+
+            // 3. Pescoço
+            ctx.fillStyle = skin.shadow;
+            ctx.beginPath();
+            ctx.moveTo(125, 230);
+            ctx.lineTo(125, 305);
+            ctx.quadraticCurveTo(150, 320, 175, 305);
+            ctx.lineTo(175, 230);
+            ctx.closePath();
+            ctx.fill();
+
+            // Sombra do queixo
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+            ctx.beginPath();
+            ctx.ellipse(150, 238, 32, 14, 0, 0, Math.PI);
+            ctx.fill();
+
+            // 4. Cabeça / Rosto
+            ctx.fillStyle = skin.main;
+            ctx.beginPath();
+            ctx.ellipse(150, 180, 52, 65, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Orelhas
+            ctx.fillStyle = skin.main;
+            ctx.beginPath();
+            ctx.ellipse(98, 185, 9, 16, 0, 0, Math.PI * 2);
+            ctx.ellipse(202, 185, 9, 16, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 5. Olhos
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(132, 175, 9, 5.5, 0, 0, Math.PI * 2);
+            ctx.ellipse(168, 175, 9, 5.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Íris
+            ctx.fillStyle = '#2d1a0e';
+            ctx.beginPath();
+            ctx.arc(132, 175, 4.5, 0, Math.PI * 2);
+            ctx.arc(168, 175, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Brilho dos olhos
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(134, 173, 1.5, 0, Math.PI * 2);
+            ctx.arc(170, 173, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sobrancelhas
+            ctx.strokeStyle = hair;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(122, 164);
+            ctx.quadraticCurveTo(132, 160, 142, 164);
+            ctx.moveTo(158, 164);
+            ctx.quadraticCurveTo(168, 160, 178, 164);
+            ctx.stroke();
+
+            // Nariz
+            ctx.strokeStyle = skin.shadow;
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(150, 175);
+            ctx.lineTo(148, 198);
+            ctx.lineTo(154, 198);
+            ctx.stroke();
+
+            // Boca / Lábios
+            ctx.fillStyle = skin.lips;
+            ctx.beginPath();
+            ctx.ellipse(150, 216, 12, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 6. Cabelo Frontal
+            ctx.fillStyle = hair;
+            if (sexo === 'M') {
+                ctx.beginPath();
+                ctx.ellipse(150, 140, 56, 35, 0, Math.PI, Math.PI * 2);
+                ctx.quadraticCurveTo(205, 155, 204, 180);
+                ctx.quadraticCurveTo(190, 145, 150, 145);
+                ctx.quadraticCurveTo(110, 145, 96, 180);
+                ctx.quadraticCurveTo(95, 155, 150, 140);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.ellipse(150, 138, 58, 38, 0, Math.PI, Math.PI * 2);
+                ctx.quadraticCurveTo(212, 170, 210, 260);
+                ctx.quadraticCurveTo(195, 230, 192, 170);
+                ctx.quadraticCurveTo(150, 140, 108, 170);
+                ctx.quadraticCurveTo(105, 230, 90, 260);
+                ctx.quadraticCurveTo(88, 170, 150, 138);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            return canvas.toDataURL('image/jpeg', 0.95);
+        }
+
+        function gerarPessoa(seed = 0) {
+            const sexo = Math.random() > 0.5 ? 'M' : 'F';
+            const nomeBase = sexo === 'M' ? randomItem(nomesMasculinos) : randomItem(nomesFemininos);
+            const sob1 = randomItem(sobrenomes);
+            const sob2 = randomItem(sobrenomes);
+            const nomeCompleto = `${nomeBase} ${sob1} ${sob2}`.toUpperCase();
+
+            const dataNascimento = new Date(randomInt(1970, 2005), randomInt(0, 11), randomInt(1, 28));
+            const dataEmissao = new Date(randomInt(2023, 2024), randomInt(0, 11), randomInt(1, 28));
+
+            const dataValidade = new Date(dataEmissao);
+            dataValidade.setFullYear(dataValidade.getFullYear() + 10);
+
+            return {
+                nome: nomeCompleto,
+                cpf: gerarCPF(),
+                sexo: sexo,
+                dataNascimento: formatarData(dataNascimento),
+                nacionalidade: "BRA",
+                naturalidade: randomItem(cidadesCE),
+                dataValidade: formatarData(dataValidade),
+                mae: `${randomItem(nomesFemininos)} ${sob1} ${randomItem(sobrenomes)}`.toUpperCase(),
+                pai: `${randomItem(nomesMasculinos)} ${randomItem(sobrenomes)} ${sob2}`.toUpperCase(),
+                localEmissao: randomItem(cidadesCE),
+                dataEmissao: formatarData(dataEmissao),
+                assinatura: nomeBase + " " + sob2,
+                foto: gerarFoto3x4(sexo, seed || randomInt(1, 100))
+            };
+        }
+
+        function getFormatoInfo() {
+            const select = document.getElementById('formato');
+            const val = select ? select.value : 'png';
+            if (val === 'jpeg' || val === 'jpg') {
+                return { mime: 'image/jpeg', ext: 'jpg', quality: 0.95, pdfType: 'JPEG', label: 'JPG' };
+            }
+            if (val === 'webp') {
+                return { mime: 'image/webp', ext: 'webp', quality: 0.95, pdfType: 'JPEG', label: 'WEBP' };
+            }
+            return { mime: 'image/png', ext: 'png', quality: 1.0, pdfType: 'PNG', label: 'PNG' };
+        }
+
+        function getEscala() {
+            const select = document.getElementById('escala');
+            return select ? (parseFloat(select.value) || 2) : 2;
+        }
+
+        function atualizarLabelsFormato() {
+            const info = getFormatoInfo();
+            document.querySelectorAll('.btn-ext-label').forEach(el => {
+                el.textContent = info.label;
+            });
+        }
+
+        function trocarFoto(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const wrapper = input.closest('.cin-wrapper');
+                    const img = wrapper.querySelector('.data-foto');
+                    if (img) img.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function renderizarCartao(pessoa, container, index = 0) {
+            const template = document.getElementById('cin-template');
+            const clone = template.content.cloneNode(true);
+            const wrapper = clone.querySelector('.cin-wrapper');
+
+            const setTexto = (seletor, texto) => {
+                const el = wrapper.querySelector(seletor);
+                if (el) el.textContent = texto;
+            };
+
+            const cardBadge = wrapper.querySelector('.card-badge');
+            if (cardBadge) {
+                cardBadge.textContent = `Cartão #${index + 1} - ${pessoa.nome}`;
+            }
+
+            // Aplica os fundos Base64 embutidos se existirem em assets.js
+            const frente = wrapper.querySelector('.cin-front');
+            if (frente && window.CIN_BG_FRENTE) {
+                frente.style.backgroundImage = `url("${window.CIN_BG_FRENTE}")`;
+            }
+
+            const verso = wrapper.querySelector('.cin-back');
+            if (verso && window.CIN_BG_VERSO) {
+                verso.style.backgroundImage = `url("${window.CIN_BG_VERSO}")`;
+            }
+
+            // Preenche os dados da Frente
+            setTexto('.data-nome', pessoa.nome);
+            setTexto('.data-cpf', pessoa.cpf);
+            setTexto('.data-sexo', pessoa.sexo);
+            setTexto('.data-nascimento', pessoa.dataNascimento);
+            setTexto('.data-nacionalidade', pessoa.nacionalidade);
+            setTexto('.data-naturalidade', pessoa.naturalidade);
+            setTexto('.data-validade', pessoa.dataValidade);
+            setTexto('.data-assinatura', pessoa.assinatura);
+
+            const imgFoto = wrapper.querySelector('.data-foto');
+            if (imgFoto && pessoa.foto) {
+                imgFoto.src = pessoa.foto;
+            }
+
+            // Preenche os dados do Verso
+            setTexto('.data-mae', pessoa.mae);
+            setTexto('.data-pai', pessoa.pai);
+            setTexto('.data-local-emissao', pessoa.localEmissao);
+            setTexto('.data-emissao', pessoa.dataEmissao);
+
+            container.appendChild(wrapper);
+
+            // Gerar QR Code diretamente no elemento do DOM anexado
+            const qrContainer = wrapper.querySelector('.qr-code-container');
+            const qrData = `CIN|${pessoa.cpf}|${pessoa.nome}`.normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+
+            new QRCode(qrContainer, {
+                text: qrData,
+                width: 150,
+                height: 150,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            atualizarLabelsFormato();
+        }
+
+        function gerarNovas() {
+            const qtd = parseInt(document.getElementById('qtd').value) || 1;
+            const previewContainer = document.getElementById('preview-container');
+            const renderContainer = document.getElementById('render-container');
+
+            previewContainer.innerHTML = '';
+            renderContainer.innerHTML = '';
+
+            for (let i = 0; i < qtd; i++) {
+                const pessoa = gerarPessoa(i);
+                renderizarCartao(pessoa, previewContainer, i);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            gerarNovas();
+            const formatSelect = document.getElementById('formato');
+            if (formatSelect) {
+                formatSelect.addEventListener('change', atualizarLabelsFormato);
+            }
+        });
+
+        function toggleLoading(show, text = 'Processando...') {
+            const overlay = document.getElementById('loading-overlay');
+            const preview = document.getElementById('preview-container');
+            document.getElementById('loading-text').textContent = text;
+            if (show) {
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+                preview.style.opacity = '0.3';
+            } else {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+                preview.style.opacity = '1';
+            }
+        }
+
+        async function processarImagensDOM(formatoInfo = null, escala = null) {
+            const preview = document.getElementById('preview-container');
+            const wrappers = preview.querySelectorAll('.cin-wrapper');
+            if (wrappers.length === 0) {
+                alert('Nenhum cartão para exportar. Clique em "Gerar" primeiro.');
+                return [];
+            }
+
+            const info = formatoInfo || getFormatoInfo();
+            const scale = escala || getEscala();
+
+            // Salva o transform original e desativa temporariamente para captura 100% nítida
+            const originalTransform = preview.style.transform;
+            preview.style.transform = 'none';
+
+            const imagens = [];
+            const opt = {
+                scale: scale,
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: '#ffffff',
+                logging: false
+            };
+
+            try {
+                for (let i = 0; i < wrappers.length; i++) {
+                    toggleLoading(true, `Capturando cartão ${i + 1} de ${wrappers.length}...`);
+                    
+                    const frente = wrappers[i].querySelector('.cin-front');
+                    const verso = wrappers[i].querySelector('.cin-back');
+
+                    const canvasFrente = await html2canvas(frente, opt);
+                    const canvasVerso = await html2canvas(verso, opt);
+
+                    const dataUrlFrente = canvasFrente.toDataURL(info.mime, info.quality);
+                    const dataUrlVerso = canvasVerso.toDataURL(info.mime, info.quality);
+
+                    // Para jsPDF, usamos PNG ou JPEG para garantir máxima compatibilidade
+                    const pdfFrente = (info.mime === 'image/webp') ? canvasFrente.toDataURL('image/jpeg', 0.95) : dataUrlFrente;
+                    const pdfVerso = (info.mime === 'image/webp') ? canvasVerso.toDataURL('image/jpeg', 0.95) : dataUrlVerso;
+
+                    const nomeEl = wrappers[i].querySelector('.data-nome');
+                    const nome = nomeEl ? nomeEl.textContent.trim() : `cartao_${i + 1}`;
+
+                    imagens.push({
+                        index: i + 1,
+                        nome: nome,
+                        frente: dataUrlFrente,
+                        verso: dataUrlVerso,
+                        pdfFrente: pdfFrente,
+                        pdfVerso: pdfVerso,
+                        ext: info.ext,
+                        mime: info.mime,
+                        pdfType: (info.mime === 'image/jpeg' || info.mime === 'image/webp') ? 'JPEG' : 'PNG'
+                    });
+                }
+            } finally {
+                // Restaura o preview na tela
+                preview.style.transform = originalTransform;
+            }
+
+            return imagens;
+        }
+
+        async function baixarIndividual(btn, tipo) {
+            try {
+                const wrapper = btn.closest('.cin-wrapper');
+                const target = wrapper.querySelector(tipo === 'frente' ? '.cin-front' : '.cin-back');
+                const info = getFormatoInfo();
+                const escala = getEscala();
+
+                const preview = document.getElementById('preview-container');
+                const originalTransform = preview.style.transform;
+                preview.style.transform = 'none';
+
+                toggleLoading(true, `Renderizando imagem (${info.ext.toUpperCase()})...`);
+
+                const canvas = await html2canvas(target, {
+                    scale: escala,
+                    useCORS: true,
+                    allowTaint: false,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+
+                preview.style.transform = originalTransform;
+
+                const dataUrl = canvas.toDataURL(info.mime, info.quality);
+                const nome = wrapper.querySelector('.data-nome')?.textContent.trim() || 'cartao';
+                const nomeSanitizado = nome.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30);
+
+                const link = document.createElement('a');
+                link.download = `cin_${nomeSanitizado}_${tipo}.${info.ext}`;
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) {
+                console.error(e);
+                alert('Erro ao baixar imagem individual: ' + (e.message || e));
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        async function exportarPDF() {
+            try {
+                toggleLoading(true, 'Iniciando captura dos cartões...');
+                const info = getFormatoInfo();
+                const escala = getEscala();
+                const imagens = await processarImagensDOM(info, escala);
+                if (!imagens || imagens.length === 0) return;
+
+                toggleLoading(true, 'Diagramando arquivo PDF...');
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+                const a4Width = 210, a4Height = 297;
+                const cardW = 85.6, cardH = 54.0;
+                const spacingX = 8; // Distância horizontal entre frente e verso
+                const spacingY = 12; // Distância vertical entre pessoas
+                const totalWidthRow = cardW * 2 + spacingX; // 179.2mm
+                const leftMargin = (a4Width - totalWidthRow) / 2; // ~15.4mm
+                const topMargin = 15;
+                const maxCardsPerPage = 4; // Até 4 pares (Frente + Verso) por folha A4
+
+                let cardCountOnPage = 0;
+
+                for (let i = 0; i < imagens.length; i++) {
+                    if (cardCountOnPage >= maxCardsPerPage) {
+                        doc.addPage();
+                        cardCountOnPage = 0;
+                    }
+
+                    const yPos = topMargin + cardCountOnPage * (cardH + spacingY);
+                    const xFrente = leftMargin;
+                    const xVerso = leftMargin + cardW + spacingX;
+
+                    // Adiciona Frente e Verso lado a lado
+                    doc.addImage(imagens[i].pdfFrente, imagens[i].pdfType, xFrente, yPos, cardW, cardH);
+                    doc.addImage(imagens[i].pdfVerso, imagens[i].pdfType, xVerso, yPos, cardW, cardH);
+
+                    // Linha guia sutil de corte
+                    doc.setDrawColor(210, 210, 210);
+                    doc.setLineDashPattern([1, 1], 0);
+                    doc.rect(xFrente, yPos, cardW, cardH);
+                    doc.rect(xVerso, yPos, cardW, cardH);
+
+                    cardCountOnPage++;
+                }
+
+                const timestamp = new Date().toISOString().slice(0, 10);
+                doc.save(`cin_documentos_${timestamp}.pdf`);
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao gerar PDF: ' + (err.message || err));
+            } finally {
+                toggleLoading(false);
+            }
+        }
+
+        async function exportarZIP() {
+            try {
+                toggleLoading(true, 'Iniciando captura das imagens...');
+                const info = getFormatoInfo();
+                const escala = getEscala();
+                const imagens = await processarImagensDOM(info, escala);
+                if (!imagens || imagens.length === 0) return;
+
+                toggleLoading(true, `Empacotando imagens (${info.ext.toUpperCase()}) no ZIP...`);
+                const zip = new JSZip();
+                const imgFolder = zip.folder(`cin_imagens_${info.ext}`);
+
+                imagens.forEach((img) => {
+                    const padIndex = String(img.index).padStart(2, '0');
+                    const base64Frente = img.frente.split(',')[1];
+                    const base64Verso = img.verso.split(',')[1];
+
+                    // Sanitiza o nome para o arquivo
+                    const nomeSanitizado = img.nome.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0, 30);
+
+                    imgFolder.file(`cin_${padIndex}_${nomeSanitizado}_frente.${img.ext}`, base64Frente, { base64: true });
+                    imgFolder.file(`cin_${padIndex}_${nomeSanitizado}_verso.${img.ext}`, base64Verso, { base64: true });
+                });
+
+                toggleLoading(true, 'Compactando arquivo ZIP final...');
+                const content = await zip.generateAsync({
+                    type: "blob",
+                    compression: "DEFLATE",
+                    compressionOptions: { level: 6 }
+                });
+
+                const timestamp = new Date().toISOString().slice(0, 10);
+                saveAs(content, `cin_imagens_${info.ext}_${timestamp}.zip`);
+            } catch (err) {
+                console.error(err);
+                alert('Erro ao gerar ZIP: ' + (err.message || err));
+            } finally {
+                toggleLoading(false);
+            }
+        }
+    </script>
+</body>
+
+</html>

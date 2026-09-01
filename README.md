@@ -88,10 +88,11 @@ flowchart TD
 
 O desenvolvimento do sistema seguiu rigorosamente os planos e documentos conceituais versionados no repositório:
 
-| Documento | Função / Descrição |
+| Documento / Ferramenta | Função / Descrição |
 | :--- | :--- |
 | [`PLANO_DE_IMPLEMENTACAO_BACKEND.md`](./PLANO_DE_IMPLEMENTACAO_BACKEND.md) | **Plano Mestre do Backend**: Arquitetura em camadas, regras RN-01 a RN-15, Strategy + Adapter, schemas Pydantic v2, Celery e MinIO S3. |
 | [`PLANO_DE_IMPLEMENTACAO_FROTEND.md`](./PLANO_DE_IMPLEMENTACAO_FROTEND.md) | **Plano Mestre do Frontend**: Arquitetura Angular 21 Standalone, Signal Stores, DaisyUI, tela de conferência Split-Screen e portal mobile de upload. |
+| [`gerar-cin/README.md`](./gerar-cin/README.md) | **Gerador de Amostras de CIN**: Ferramenta visual client-side (100% offline) para gerar imagens e PDFs realistas da CIN com CPF válido (Módulo 11) para testes de OCR. |
 | [`regras_negocio.md`](./regras_negocio.md) | **15 Regras de Negócio (RN-01 a RN-15)**: Especificação formal de limiares de confiança, Módulo 11, locking pessimista e LGPD. |
 | [`Especificacao_Casos_de_Uso.md`](./Especificacao_Casos_de_Uso.md) | **Casos de Uso Detalhados**: Atores do sistema (Operador vs. Cliente), fluxos principais, alternativos e de exceção. |
 | [`Requisitos_de_Sistema.md`](./Requisitos_de_Sistema.md) | **Requisitos Funcionais e Não-Funcionais**: Requisitos de performance, concorrência, segurança e compatibilidade. |
@@ -113,6 +114,12 @@ DOC_Intelligence/
 ├── prompts/                        # Histórico cronológico dos prompts executados
 │   ├── pesquisa/                   # Prompts de Deep Research e elicitação de requisitos
 │   └── README.md                   # Índice e tabela de rastreabilidade de prompts
+│
+├── gerar-cin/                      # Gerador visual offline de amostras sintéticas de CIN para testes
+│   ├── index.html                  # Interface gráfica (duplo clique para abrir no navegador)
+│   ├── assets.js                   # Templates embutidos em Base64
+│   ├── img (1).jfif / img (2).jfif # Imagens base de alta definição (Frente e Verso)
+│   └── README.md                   # Instruções de uso e casos de teste do gerador
 │
 ├── backend/                        # API RESTful, Processamento OCR e Filas Assíncronas
 │   ├── Dockerfile                  # Imagem Docker multi-stage para API e Celery Worker
@@ -277,6 +284,13 @@ npm test
 
 ### 📦 Testes Manuais via Postman:
 O diretório `backend/` disponibiliza a coleção completa [`postman_collection.json`](file:///d:/DOC_Intelligence/backend/postman_collection.json) e o ambiente [`postman_environment.json`](file:///d:/DOC_Intelligence/backend/postman_environment.json) com variáveis configuradas para testar todo o ciclo de vida dos endpoints.
+
+### 🪪 Geração de Amostras Sintéticas da CIN para Testes (`gerar-cin`):
+Para gerar imagens e PDFs de teste com dados brasileiros realistas (frente, verso e QR Code):
+1. Acesse a pasta [`gerar-cin/`](./gerar-cin/).
+2. Abra o arquivo [`index.html`](./gerar-cin/index.html) diretamente no navegador (não requer servidor).
+3. Selecione a quantidade (1 a 50), formato (PNG/JPG/PDF) e resolução (1x, 2x HD, 3x Full HD).
+4. Baixe os arquivos individuais ou o pacote `.ZIP` / PDF único e utilize nos endpoints de upload ou no portal mobile.
 
 ---
 
