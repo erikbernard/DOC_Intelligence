@@ -234,13 +234,28 @@ npm start
 | Serviço / Interface | URL de Acesso | Descrição |
 | :--- | :--- | :--- |
 | **Frontend SPA (Nginx / Prod)** | [`http://localhost`](http://localhost) ou [`http://localhost:4200`](http://localhost:4200) | Aplicação web para operadores e clientes. |
+| **Acesso na Rede Local (LAN / Wi-Fi)** | `http://<IP_DO_COMPUTADOR>` ou `http://<IP_DO_COMPUTADOR>:4200` | Acesso por celulares, tablets e outros PCs na mesma rede. |
 | **Swagger API Docs (FastAPI)** | [`http://localhost:8000/docs`](http://localhost:8000/docs) ou [`http://localhost/docs`](http://localhost/docs) | Documentação interativa da API OpenAPI v3. |
 | **Stream de Eventos SSE** | `http://localhost:8000/api/v1/events/stream` | Canal de eventos em tempo real Server-Sent Events. |
 | **MinIO S3 Console** | [`http://localhost:9001`](http://localhost:9001) | Console de gestão visual do bucket de armazenamento. |
 | **MinIO S3 API Endpoint** | `http://localhost:9000` | Endpoint de upload e download SigV4 S3. |
 
+### 🌐 Acesso por Dispositivos na Mesma Rede (Smartphones / Tablets / Outros PCs):
+Para acessar o frontend ou abrir links de coleta pública a partir de celulares e outros dispositivos conectados no mesmo Wi-Fi/rede local:
+1. Descubra o IP local do computador onde o Docker está rodando:
+   * **Windows (PowerShell):** `ipconfig` (procure pelo campo *IPv4 Address*, ex: `192.168.1.50`).
+   * **Linux/Mac:** `ip a` ou `ifconfig`.
+2. No navegador do dispositivo móvel/rede local, acerte:
+   * **Frontend:** `http://<SEU_IP_LOCAL>` (ex: `http://192.168.1.50`)
+   * **Porta Alternativa:** `http://<SEU_IP_LOCAL>:4200`
+3. Os links de coleta gerados pelo operador (`/public/upload?token=...`) utilizarão automaticamente a origem e o IP da rede local.
+4. *(Opcional)* Se o Windows Defender Firewall bloquear conexões de outros aparelhos, libere a porta 80/4200 com:
+   ```powershell
+   New-NetFirewallRule -DisplayName "DOC_Intelligence_Prod" -Direction Inbound -LocalPort 80,4200 -Protocol TCP -Action Allow
+   ```
+
 ### 🔐 Credenciais Padrão de Acesso:
-* **Usuário Operador / Administrador:** `admin@docintelligence.com` / `admin123`
+* **Usuário Operador / Administrador:** `admin@docintelligence.com` / `adminpassword123`
 * **MinIO Console (S3):** `minioadmin` / `minioadmin`
 * **PostgreSQL:** `postgres` / `postgres` (Banco: `doc_intelligence`)
 

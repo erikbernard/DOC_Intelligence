@@ -1,4 +1,4 @@
-import { Component, OnInit, effect, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -7,6 +7,13 @@ import { NotificationService } from '../../../core/services/notification.service
 import { ToastService } from '../../../core/services/toast.service';
 import { Persona, PersonaCreate, PersonaStatus } from '../../../core/models/persona.model';
 import { CollectionLinkResponse } from '../../../core/models/collection-link.model';
+import {
+  formatCpf,
+  formatPhone,
+  validateCpf,
+  validateEmail,
+  validatePhone,
+} from '../../../core/utils/validators';
 
 @Component({
   selector: 'app-persona-list',
@@ -33,18 +40,27 @@ import { CollectionLinkResponse } from '../../../core/models/collection-link.mod
       <!-- Filters & Search Bar -->
       <div class="card bg-base-100 border border-base-200 shadow-xs">
         <div class="card-body p-4 flex flex-col md:flex-row gap-3 items-center justify-between">
-          <!-- Search input -->
+          <!-- Search input with real-time reactive filtering -->
           <div class="relative w-full md:w-80">
             <input
               type="text"
-              [(ngModel)]="searchQuery"
-              (keyup.enter)="loadPersonas()"
+              [ngModel]="searchQuery()"
+              (ngModelChange)="onSearchChange($event)"
               placeholder="Buscar por nome, CPF ou e-mail..."
               class="input input-bordered input-sm w-full pl-9"
             />
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-2.5 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
+            @if (searchQuery()) {
+              <button
+                (click)="clearSearch()"
+                class="btn btn-ghost btn-xs btn-circle absolute right-2 top-1.5 text-base-content/50"
+                title="Limpar busca"
+              >
+                ✕
+              </button>
+            }
           </div>
 
           <!-- Status Filter Tabs -->
@@ -52,28 +68,28 @@ import { CollectionLinkResponse } from '../../../core/models/collection-link.mod
             <button
               (click)="setStatusFilter(undefined)"
               class="btn btn-xs"
-              [ngClass]="!selectedStatus ? 'btn-neutral' : 'btn-ghost'"
+              [ngClass]="!selectedStatus() ? 'btn-neutral' : 'btn-ghost'"
             >
               Todos
             </button>
             <button
               (click)="setStatusFilter('PENDING')"
               class="btn btn-xs"
-              [ngClass]="selectedStatus === 'PENDING' ? 'btn-neutral' : 'btn-ghost'"
+              [ngClass]="selectedStatus() === 'PENDING' ? 'btn-neutral' : 'btn-ghost'"
             >
               Pendentes
             </button>
             <button
               (click)="setStatusFilter('IN_REVIEW')"
               class="btn btn-xs"
-              [ngClass]="selectedStatus === 'IN_REVIEW' ? 'btn-warning text-warning-content' : 'btn-ghost'"
+              [ngClass]="selectedStatus() === 'IN_REVIEW' ? 'btn-warning text-warning-content' : 'btn-ghost'"
             >
               Em Revisão
             </button>
             <button
               (click)="setStatusFilter('ONBOARDING_COMPLETED')"
               class="btn btn-xs"
-              [ngClass]="selectedStatus === 'ONBOARDING_COMPLETED' ? 'btn-success text-success-content' : 'btn-ghost'"
+              [ngClass]="selectedStatus() === 'ONBOARDING_COMPLETED' ? 'btn-success text-success-content' : 'btn-ghost'"
             >
               Concluídos (RN-15)
             </button>
@@ -104,7 +120,7 @@ import { CollectionLinkResponse } from '../../../core/models/collection-link.mod
                     <p class="text-xs text-base-content/60 mt-2">Carregando personas...</p>
                   </td>
                 </tr>
-              } @else if (personas().length === 0) {
+              } @else if (paginatedPersonas().length === 0) {
                 <tr>
                   <td colspan="7" class="text-center py-12">
                     <div class="flex flex-col items-center justify-center space-y-2">
@@ -117,18 +133,18 @@ import { CollectionLinkResponse } from '../../../core/models/collection-link.mod
                   </td>
                 </tr>
               } @else {
-                @for (persona of personas(); track persona.id) {
+                @for (persona of paginatedPersonas(); track persona.id) {
                   <tr class="hover:bg-base-200/40 transition-colors">
                     <td>
                       <div class="font-bold text-base-content">{{ persona.name }}</div>
                       <div class="text-[11px] text-base-content/50 font-mono">{{ persona.id }}</div>
                     </td>
                     <td>
-                      <span class="font-mono text-xs">{{ persona.cpf || 'Não informado' }}</span>
+                      <span class="font-mono text-xs">{{ persona.cpf ? formatCpf(persona.cpf) : 'Não informado' }}</span>
                     </td>
                     <td>
                       <div class="text-xs">{{ persona.email || '—' }}</div>
-                      <div class="text-[11px] text-base-content/50">{{ persona.phone || '—' }}</div>
+                      <div class="text-[11px] text-base-content/50">{{ persona.phone ? formatPhone(persona.phone) : '—' }}</div>
                     </td>
                     <td>
                       @switch (persona.status) {
@@ -203,6 +219,38 @@ import { CollectionLinkResponse } from '../../../core/models/collection-link.mod
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination Bar -->
+        @if (filteredPersonas().length > 0) {
+          <div class="p-3 border-t border-base-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-base-content/70">
+            <div>
+              Exibindo
+              <strong class="text-base-content">{{ paginationStart }}</strong> a
+              <strong class="text-base-content">{{ paginationEnd }}</strong> de
+              <strong class="text-base-content">{{ filteredPersonas().length }}</strong> personas
+            </div>
+
+            <div class="join">
+              <button
+                class="join-item btn btn-xs"
+                [disabled]="currentPage() === 1"
+                (click)="prevPage()"
+              >
+                « Anterior
+              </button>
+              <button class="join-item btn btn-xs btn-active pointer-events-none">
+                Pág. {{ currentPage() }} / {{ totalPages() }}
+              </button>
+              <button
+                class="join-item btn btn-xs"
+                [disabled]="currentPage() >= totalPages()"
+                (click)="nextPage()"
+              >
+                Próxima »
+              </button>
+            </div>
+          </div>
+        }
       </div>
     </div>
 
@@ -227,25 +275,37 @@ import { CollectionLinkResponse } from '../../../core/models/collection-link.mod
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="form-control">
-                <label class="label py-1"><span class="label-text text-xs font-semibold">CPF (apenas números)</span></label>
+                <label class="label py-1"><span class="label-text text-xs font-semibold">CPF</span></label>
                 <input
                   type="text"
-                  [(ngModel)]="newPersona.cpf"
+                  [ngModel]="newPersona.cpf"
+                  (input)="onCpfInput($event)"
                   name="cpf"
-                  placeholder="12345678909"
-                  class="input input-bordered input-sm w-full"
+                  maxlength="14"
+                  placeholder="000.000.000-00"
+                  class="input input-bordered input-sm w-full font-mono"
+                  [ngClass]="{ 'input-error': isCpfInvalid }"
                 />
+                @if (isCpfInvalid) {
+                  <span class="text-[11px] text-error mt-0.5">CPF inválido (dígito verificador incorreto).</span>
+                }
               </div>
 
               <div class="form-control">
                 <label class="label py-1"><span class="label-text text-xs font-semibold">Telefone</span></label>
                 <input
                   type="text"
-                  [(ngModel)]="newPersona.phone"
+                  [ngModel]="newPersona.phone"
+                  (input)="onPhoneInput($event)"
                   name="phone"
-                  placeholder="+5511999998888"
-                  class="input input-bordered input-sm w-full"
+                  maxlength="15"
+                  placeholder="(11) 99999-8888"
+                  class="input input-bordered input-sm w-full font-mono"
+                  [ngClass]="{ 'input-error': isPhoneInvalid }"
                 />
+                @if (isPhoneInvalid) {
+                  <span class="text-[11px] text-error mt-0.5">Telefone deve conter DDD + número.</span>
+                }
               </div>
             </div>
 
@@ -257,7 +317,11 @@ import { CollectionLinkResponse } from '../../../core/models/collection-link.mod
                 name="email"
                 placeholder="carlos.ferreira@example.com"
                 class="input input-bordered input-sm w-full"
+                [ngClass]="{ 'input-error': isEmailInvalid }"
               />
+              @if (isEmailInvalid) {
+                <span class="text-[11px] text-error mt-0.5">E-mail em formato inválido.</span>
+              }
             </div>
 
             <div class="form-control">
@@ -290,7 +354,7 @@ import { CollectionLinkResponse } from '../../../core/models/collection-link.mod
               <button type="button" (click)="closeCreateModal()" class="btn btn-ghost btn-sm" [disabled]="submitting()">
                 Cancelar
               </button>
-              <button type="submit" class="btn btn-primary btn-sm" [disabled]="submitting() || !newPersona.name">
+              <button type="submit" class="btn btn-primary btn-sm" [disabled]="isFormInvalid || submitting()">
                 @if (submitting()) {
                   <span class="loading loading-spinner loading-xs"></span>
                 }
@@ -364,8 +428,11 @@ export class PersonaListComponent implements OnInit {
   public isCreateModalOpen = signal<boolean>(false);
   public generatedLink = signal<CollectionLinkResponse | null>(null);
 
-  public searchQuery = '';
-  public selectedStatus: PersonaStatus | undefined = undefined;
+  // Search & Pagination Signals
+  public searchQuery = signal<string>('');
+  public selectedStatus = signal<PersonaStatus | undefined>(undefined);
+  public currentPage = signal<number>(1);
+  public pageSize = signal<number>(10);
 
   public newPersona: PersonaCreate = {
     name: '',
@@ -375,6 +442,56 @@ export class PersonaListComponent implements OnInit {
     required_document_types: ['CIN'],
     metadata_info: {},
   };
+
+  // Reusable format utilities exposed to template
+  public formatCpf = formatCpf;
+  public formatPhone = formatPhone;
+
+  // Reactive client-side filtering + search
+  public filteredPersonas = computed(() => {
+    let list = this.personas();
+    const query = this.searchQuery().trim().toLowerCase();
+    const status = this.selectedStatus();
+
+    if (status) {
+      list = list.filter((p) => p.status === status);
+    }
+
+    if (query) {
+      list = list.filter((p) => {
+        const nameMatch = (p.name || '').toLowerCase().includes(query);
+        const cpfMatch = (p.cpf || '').replace(/\D/g, '').includes(query.replace(/\D/g, '')) || (p.cpf || '').toLowerCase().includes(query);
+        const emailMatch = (p.email || '').toLowerCase().includes(query);
+        const phoneMatch = (p.phone || '').replace(/\D/g, '').includes(query.replace(/\D/g, ''));
+        const idMatch = (p.id || '').toLowerCase().includes(query);
+        return nameMatch || cpfMatch || emailMatch || phoneMatch || idMatch;
+      });
+    }
+
+    return list;
+  });
+
+  public totalPages = computed(() => {
+    const total = this.filteredPersonas().length;
+    return Math.max(1, Math.ceil(total / this.pageSize()));
+  });
+
+  public paginatedPersonas = computed(() => {
+    const list = this.filteredPersonas();
+    const page = this.currentPage();
+    const size = this.pageSize();
+    const start = (page - 1) * size;
+    return list.slice(start, start + size);
+  });
+
+  public get paginationStart(): number {
+    if (this.filteredPersonas().length === 0) return 0;
+    return (this.currentPage() - 1) * this.pageSize() + 1;
+  }
+
+  public get paginationEnd(): number {
+    return Math.min(this.currentPage() * this.pageSize(), this.filteredPersonas().length);
+  }
 
   constructor() {
     // Automatically refresh on SSE events that change persona or document states
@@ -393,32 +510,50 @@ export class PersonaListComponent implements OnInit {
   public get clientUploadUrl(): string {
     const link = this.generatedLink();
     if (!link) return '';
+    const token = link.token || link.public_token || '';
     const origin = window.location.origin;
-    return `${origin}/public/upload?token=${link.public_token}`;
+    return `${origin}/public/upload?token=${encodeURIComponent(token)}`;
+  }
+
+  public onSearchChange(query: string): void {
+    this.searchQuery.set(query);
+    this.currentPage.set(1); // Reset page to 1 on search
+  }
+
+  public clearSearch(): void {
+    this.searchQuery.set('');
+    this.currentPage.set(1);
   }
 
   public setStatusFilter(status?: PersonaStatus): void {
-    this.selectedStatus = status;
-    this.loadPersonas();
+    this.selectedStatus.set(status);
+    this.currentPage.set(1);
+  }
+
+  public prevPage(): void {
+    if (this.currentPage() > 1) {
+      this.currentPage.update((p) => p - 1);
+    }
+  }
+
+  public nextPage(): void {
+    if (this.currentPage() < this.totalPages()) {
+      this.currentPage.update((p) => p + 1);
+    }
   }
 
   public loadPersonas(showLoading = true): void {
     if (showLoading) this.loading.set(true);
 
-    this.personaService
-      .list({
-        status: this.selectedStatus,
-        search: this.searchQuery ? this.searchQuery : undefined,
-      })
-      .subscribe({
-        next: (data) => {
-          this.personas.set(data);
-          this.loading.set(false);
-        },
-        error: () => {
-          this.loading.set(false);
-        },
-      });
+    this.personaService.list().subscribe({
+      next: (data) => {
+        this.personas.set(data);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+      },
+    });
   }
 
   public openCreateModal(): void {
@@ -437,6 +572,39 @@ export class PersonaListComponent implements OnInit {
     this.isCreateModalOpen.set(false);
   }
 
+  public onCpfInput(event: any): void {
+    const val = event.target?.value || '';
+    this.newPersona.cpf = formatCpf(val);
+  }
+
+  public onPhoneInput(event: any): void {
+    const val = event.target?.value || '';
+    this.newPersona.phone = formatPhone(val);
+  }
+
+  public get isCpfInvalid(): boolean {
+    if (!this.newPersona.cpf) return false;
+    return !validateCpf(this.newPersona.cpf);
+  }
+
+  public get isPhoneInvalid(): boolean {
+    if (!this.newPersona.phone) return false;
+    return !validatePhone(this.newPersona.phone);
+  }
+
+  public get isEmailInvalid(): boolean {
+    if (!this.newPersona.email) return false;
+    return !validateEmail(this.newPersona.email);
+  }
+
+  public get isFormInvalid(): boolean {
+    if (!this.newPersona.name || !this.newPersona.name.trim()) return true;
+    if (this.isCpfInvalid) return true;
+    if (this.isPhoneInvalid) return true;
+    if (this.isEmailInvalid) return true;
+    return false;
+  }
+
   public hasRequiredType(type: string): boolean {
     return (this.newPersona.required_document_types || []).includes(type);
   }
@@ -451,10 +619,18 @@ export class PersonaListComponent implements OnInit {
   }
 
   public submitCreatePersona(): void {
-    if (!this.newPersona.name) return;
+    if (this.isFormInvalid) return;
     this.submitting.set(true);
 
-    this.personaService.create(this.newPersona).subscribe({
+    const payload: PersonaCreate = {
+      ...this.newPersona,
+      name: this.newPersona.name.trim(),
+      email: this.newPersona.email ? this.newPersona.email.trim() : undefined,
+      cpf: this.newPersona.cpf ? this.newPersona.cpf.replace(/\D/g, '') : undefined,
+      phone: this.newPersona.phone ? this.newPersona.phone.trim() : undefined,
+    };
+
+    this.personaService.create(payload).subscribe({
       next: (created) => {
         this.submitting.set(false);
         this.toastService.success(`Persona '${created.name}' criada com sucesso!`);
@@ -486,14 +662,11 @@ export class PersonaListComponent implements OnInit {
   }
 
   public confirmDelete(persona: Persona): void {
-    const confirmed = confirm(
-      `ATENÇÃO (RN-13 Direito ao Esquecimento):\nTem certeza que deseja excluir a persona '${persona.name}' e TODOS os seus documentos no MinIO S3 e banco de dados de forma definitiva?`
-    );
-
-    if (confirmed) {
+    const msg = `ATENÇÃO (RN-13 Direito ao Esquecimento):\n\nDeseja realmente excluir a Persona '${persona.name}'?\nEsta ação é irreversível e executará a remoção definitiva (Hard Delete) de todos os documentos no PostgreSQL e no bucket do MinIO S3.`;
+    if (confirm(msg)) {
       this.personaService.delete(persona.id).subscribe({
         next: () => {
-          this.toastService.success(`Persona excluída com sucesso em cascata.`);
+          this.toastService.success(`Persona '${persona.name}' e seus documentos foram excluídos.`);
           this.loadPersonas();
         },
       });
