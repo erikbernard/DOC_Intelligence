@@ -23,4 +23,16 @@ Este diretório contém o registro integral e cronológico de todos os prompts d
 
 ---
 
-*Todos os arquivos acima estão devidamente commitados e versionados no repositório.*\n
+## 🔬 Prompts de Pesquisa Preliminar e Concepção (`prompts/pesquisa/`)
+
+Os prompts utilizados no navegador via Gemini (incluindo o recurso *Deep Research*) para elicitação de requisitos, estudo de motores OCR e análise do Decreto da CIN estão catalogados no diretório [`prompts/pesquisa/`](./pesquisa/):
+
+| # | Arquivo | Tópico Principal / Escopo |
+| :-: | :--- | :--- |
+| **P1** | [`pesquisa/01_deep_research_ocr_open_source.md`](./pesquisa/01_deep_research_ocr_open_source.md) | Deep research de motores OCR open source (EasyOCR, Tesseract, etc.) para documentos brasileiros. |
+| **P2** | [`pesquisa/02_definicoes_documento_identidade_cin.md`](./pesquisa/02_definicoes_documento_identidade_cin.md) | Pesquisa técnica e legal das especificações da nova Carteira de Identidade Nacional (CIN). |
+| **P3** | [`pesquisa/03_especificacao_casos_de_Uso_e_requisitos.md`](./pesquisa/03_especificacao_casos_de_Uso_e_requisitos.md) | Consolidação arquitetural de requisitos, casos de uso, Strategy + Adapter, MinIO S3, SSE e Celery. |
+
+---
+
+*Todos os arquivos acima estão devidamente commitados e versionados no repositório.*
