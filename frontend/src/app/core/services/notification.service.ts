@@ -50,6 +50,7 @@ export class NotificationService {
 
     // Listen to all relevant backend domain events
     const handledEvents = [
+      'document.uploaded',
       'document.processing',
       'document.ready',
       'document.needs_review',
@@ -96,51 +97,99 @@ export class NotificationService {
   private handleIncomingEvent(eventName: string, payload: any): void {
     this._latestEvent.set({ event: eventName, payload });
 
+    const personaName =
+      payload.persona_name ||
+      payload.name ||
+      payload.extracted_data?.fields?.nome?.value ||
+      payload.extracted_data?.fields?.nome ||
+      '';
+
     let title = 'Notificação';
     let message = 'Novo evento recebido.';
     let type: NotificationType = 'info';
-    let link: string | undefined = undefined;
+    const docId = payload.document_id || payload.documentId;
+    const personaId = payload.persona_id || payload.personaId;
+    let link: string | undefined = docId
+      ? `/documents/${docId}/review`
+      : personaId
+        ? `/personas/${personaId}`
+        : undefined;
 
     switch (eventName) {
+      case 'document.uploaded':
+        title = 'Documento Recebido';
+        message = personaName
+          ? `Novo documento enviado para ${personaName}.`
+          : 'Novo documento enviado pelo link de coleta.';
+        type = 'info';
+        if (docId) {
+          link = `/documents/${docId}/review`;
+        }
+        this.toastService.info(message);
+        break;
+
       case 'document.processing':
         title = 'Processando OCR';
-        message = `O documento está sendo analisado pelos motores de inteligência.`;
+        message = personaName
+          ? `O documento de ${personaName} está sendo processado pelos motores de IA.`
+          : 'O documento está sendo processado pelos motores de IA.';
         type = 'info';
+        if (docId) {
+          link = `/documents/${docId}/review`;
+        }
+        // Notificação silenciosa: não dispara toast intrusivo na tela
         break;
 
       case 'document.ready':
         title = 'Documento Aprovado!';
-        message = `Documento validado com sucesso (READY).`;
+        message = personaName
+          ? `Documento de ${personaName} validado com sucesso (READY).`
+          : 'Documento validado com sucesso (READY).';
         type = 'success';
-        if (payload.persona_id) {
-          link = `/personas/${payload.persona_id}`;
+        if (docId) {
+          link = `/documents/${docId}/review`;
+        } else if (personaId) {
+          link = `/personas/${personaId}`;
         }
         this.toastService.success(message);
         break;
 
       case 'document.needs_review':
         title = 'Revisão Necessária (RN-01/02)';
-        message = `Documento requer conferência visual do operador.`;
+        message = personaName
+          ? `Documento de ${personaName} requer conferência visual do operador.`
+          : 'Documento requer conferência visual do operador.';
         type = 'warning';
-        if (payload.document_id) {
-          link = `/documents/${payload.document_id}/review`;
+        if (docId) {
+          link = `/documents/${docId}/review`;
+        } else if (personaId) {
+          link = `/personas/${personaId}`;
         }
         this.toastService.warning(message);
         break;
 
       case 'document.rejected':
         title = 'Documento Rejeitado';
-        message = `Documento ilegível/rejeitado (RN-09).`;
+        message = personaName
+          ? `Documento de ${personaName} foi rejeitado (RN-09).`
+          : 'Documento ilegível/rejeitado (RN-09).';
         type = 'error';
+        if (docId) {
+          link = `/documents/${docId}/review`;
+        } else if (personaId) {
+          link = `/personas/${personaId}`;
+        }
         this.toastService.error(message);
         break;
 
       case 'persona.completed':
         title = 'Onboarding Concluído! (RN-15)';
-        message = `Todos os documentos da Persona '${payload.name || 'titular'}' foram validados com sucesso!`;
+        message = personaName
+          ? `Todos os documentos de ${personaName} foram validados com sucesso!`
+          : 'Todos os documentos da Persona foram validados com sucesso!';
         type = 'success';
-        if (payload.persona_id) {
-          link = `/personas/${payload.persona_id}`;
+        if (personaId) {
+          link = `/personas/${personaId}`;
         }
         this.toastService.success(message, 8000);
         break;
@@ -154,8 +203,8 @@ export class NotificationService {
       read: false,
       type,
       link,
-      documentId: payload.document_id,
-      personaId: payload.persona_id,
+      documentId: docId,
+      personaId: personaId,
     };
 
     this._notifications.update((current) => [notification, ...current.slice(0, 49)]);

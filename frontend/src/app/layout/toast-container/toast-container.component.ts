@@ -7,10 +7,10 @@ import { ToastService } from '../../core/services/toast.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="toast toast-top toast-end z-50 space-y-2 p-4 max-w-sm w-full">
+    <div class="toast toast-top toast-end z-50 space-y-2 p-4 max-w-sm w-full pointer-events-none">
       @for (toast of toastService.toasts(); track toast.id) {
         <div
-          class="alert shadow-lg flex justify-between items-start text-sm transition-all duration-300 transform translate-y-0"
+          class="alert shadow-lg flex justify-between items-start text-sm transition-all duration-300 transform translate-y-0 pointer-events-auto"
           [ngClass]="{
             'alert-info': toast.type === 'info',
             'alert-success': toast.type === 'success',
